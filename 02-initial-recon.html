@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Initial Recon | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#vars">Env Vars + Dirs</a></li>
+      <li><a href="#initial">Initial Scan</a></li>
+      <li><a href="#allports">Full Port Scan</a></li>
+      <li><a href="#targeted">Targeted Scan</a></li>
+      <li><a href="#udp">UDP Scan</a></li>
+      <li><a href="#autorecon">Autorecon</a></li>
+      <li><a href="#time">Time Budget</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">🔍 Initial Recon</h1>
+    <p class="page-sub">Fire all scans before doing anything else. Background them with &amp; so everything runs in parallel while you set up other windows.</p>
+
+    <section class="sec" id="vars">
+      <div class="sec-head"><h2>Environment Variables + Directory Structure</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">set vars + create dirs (run in "notes" window)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>export KALI=$(ip a show tun0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
+export DC01=10.10.10.10
+export DC02=10.10.10.11
+export DC03=10.10.10.12
+export WEB01=10.10.10.20
+export LIN01=10.10.10.30
+export WIN01=10.10.10.40
+export DOMAIN=corp.local
+
+mkdir -p ~/exam/{scans/{dc01,dc02,dc03,web01,lin01,win01},loot,exploits,report,logs,serve}
+echo "KALI tun0: $KALI"</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="initial">
+      <div class="sec-head"><h2>Initial Scan — All Targets Simultaneously</h2></div>
+      <div class="note n-warn">Run from "scans" tmux window. Background all with &amp; so they run in parallel.</div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">launch all initial scans at once</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sudo nmap -sC -sV -O --open -oA ~/exam/scans/dc01/init $DC01 &amp;
+sudo nmap -sC -sV -O --open -oA ~/exam/scans/dc02/init $DC02 &amp;
+sudo nmap -sC -sV -O --open -oA ~/exam/scans/dc03/init $DC03 &amp;
+sudo nmap -sC -sV -O --open -oA ~/exam/scans/web01/init $WEB01 &amp;
+sudo nmap -sC -sV -O --open -oA ~/exam/scans/lin01/init $LIN01 &amp;
+sudo nmap -sC -sV -O --open -oA ~/exam/scans/win01/init $WIN01 &amp;
+echo "All initial scans running..."</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="allports">
+      <div class="sec-head"><h2>Full Port Scan</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">all 65535 ports — run in parallel with initial</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sudo nmap -p- --min-rate 5000 --open -oA ~/exam/scans/dc01/allports $DC01 &amp;
+sudo nmap -p- --min-rate 5000 --open -oA ~/exam/scans/web01/allports $WEB01 &amp;
+sudo nmap -p- --min-rate 5000 --open -oA ~/exam/scans/lin01/allports $LIN01 &amp;
+sudo nmap -p- --min-rate 5000 --open -oA ~/exam/scans/win01/allports $WIN01 &amp;</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="targeted">
+      <div class="sec-head"><h2>Targeted Scan — After allports Finishes</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">extract ports + deep targeted scan</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Auto-extract discovered ports:</span>
+ports=$(grep -oP '\d+/open' ~/exam/scans/web01/allports.gnmap | cut -d/ -f1 | tr '\n' ',' | sed 's/,$//')
+echo "Ports: $ports"
+sudo nmap -p $ports -sC -sV -A -oA ~/exam/scans/web01/targeted $WEB01</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="udp">
+      <div class="sec-head"><h2>UDP Scan</h2></div>
+      <div class="note n-info">Top 25 UDP ports is enough for OSCP. Full UDP scan is too slow for exam time.</div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">UDP top 25 — catches SNMP (161), TFTP (69), DNS (53)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sudo nmap -sU --top-ports 25 -oA ~/exam/scans/web01/udp $WEB01 &amp;
+sudo nmap -sU --top-ports 25 -oA ~/exam/scans/lin01/udp $LIN01 &amp;
+sudo nmap -sU --top-ports 25 -oA ~/exam/scans/win01/udp $WIN01 &amp;</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="autorecon">
+      <div class="sec-head"><h2>Autorecon — All-in-One Alternative</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">autorecon (more thorough, slower)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sudo autorecon $WEB01 $LIN01 $WIN01 -o ~/exam/scans/ --only-scans-dir
+<span class="c"># or with known ports to save time:</span>
+sudo autorecon $WEB01 --ports 80,443,8080 -o ~/exam/scans/</pre>
+      </div>
+    </section>
+
+    <section class="sec" id="time">
+      <div class="sec-head"><h2>Time Budget Guidance</h2></div>
+      <div class="cb">
+        <div class="cb-head"><span class="cb-lbl">how to allocate 23h 45m</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 0h - 1h    Setup: tmux, vars, scans running, tools ready</span>
+<span class="c"># 1h - 5h    AD set first — 40pts, highest leverage</span>
+<span class="c"># 5h - 9h    Standalone #1 and #2</span>
+<span class="c"># 9h - 13h   Standalone #3 — if 70pts reached: start report</span>
+<span class="c"># 13h - 18h  Draft report while machines still live</span>
+<span class="c"># 18h - 23h  HARD STOP on hacking. Report only. Verify all proof.txt</span>
+
+<span class="c"># Stuck rule: no progress in 30 min → rotate target</span>
+<span class="c"># AD exception: invest up to 2h before rotating away</span>
+<span class="c"># Partial credit: always document low-priv shell even if no root</span></pre>
+      </div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>

