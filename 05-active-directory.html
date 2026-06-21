@@ -416,6 +416,7 @@
         <li><a href="#quickpath">Quick Path</a></li>
         <li><a href="#topcmds">Top Commands</a></li>
         <li><a href="#flow">Flow Diagram</a></li>
+        <li><a href="#setup">⚙️ Setup (do first)</a></li>
       </ul>
     </div>
     <div class="sidebar-group">
@@ -659,6 +660,112 @@
         </svg>
       </div>
     </div>
+
+
+    <!-- ========================================== -->
+    <!-- PRE-ENGAGEMENT SETUP — DO THIS FIRST        -->
+    <!-- ========================================== -->
+    <details class="sec-detail" id="setup" open>
+<summary>⚙️ Pre-Engagement Setup — Do This First<span class="order-tag tag-ref" style="margin-right:1rem;">START HERE</span></summary>
+<div class="sec-body">
+<div class="note n-info">Before touching the target, configure these three things. Skip this and you'll burn 20 minutes debugging Kerberos errors that aren't actually errors.</div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">1. Sync your clock to the DC</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">clock sync — fixes 90% of Kerberos failures</span><div class="cb-tags"><span class="tag t-crit">required</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>Why:</strong> Kerberos rejects any auth where client and DC clocks differ by more than 5 minutes. Lab DCs are often time-frozen at random dates. <strong>Do this BEFORE any Kerberos command.</strong></div>
+<pre><span class="c"># Modern Kali (2024.4+) uses rdate — ntpdate was removed:</span>
+sudo rdate -n &lt;DC_IP&gt;
+
+<span class="c"># Verify current skew:</span>
+date
+nmap -sU -p123 &lt;DC_IP&gt; --script ntp-info
+
+<span class="c"># Shortcut alias (added by install-ad-tools.sh):</span>
+dc-sync &lt;DC_IP&gt;</pre></div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">2. Add the DC to /etc/hosts</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">FQDN setup — Kerberos requires hostnames, not IPs</span><div class="cb-tags"><span class="tag t-crit">required</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>Why:</strong> Kerberos binds tickets to SPNs (Service Principal Names) that include the hostname. Using an IP address gets <code>KDC_ERR_C_PRINCIPAL_UNKNOWN</code> even with correct credentials.</div>
+<pre><span class="c"># Add DC to /etc/hosts:</span>
+echo "&lt;DC_IP&gt; dc01.corp.local corp.local" | sudo tee -a /etc/hosts
+
+<span class="c"># Verify hostname resolves:</span>
+nslookup dc01.corp.local
+getent hosts dc01.corp.local
+
+<span class="c"># Shortcut alias:</span>
+dc-host &lt;DC_IP&gt; dc01.corp.local</pre></div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">3. Configure /etc/krb5.conf (only when needed)</h3>
+<div class="note n-warn"><strong>About the krb5 install prompt:</strong> when installing <code>krb5-user</code>, you may have left "Default Kerberos version 5 realm" blank. <strong>That was correct.</strong> You're a pentester, not a domain user — you switch domains every engagement, so a permanent default would be wrong. Configure it per-engagement using the template below.</div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">when you need krb5.conf vs when you don't</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>Don't need it:</strong> impacket tools (secretsdump, GetUserSPNs, ntlmrelayx, ticketer, getTGT, getST), certipy, kerbrute, evil-winrm, nxc — these all take the realm via command-line flag.<br><br><strong>Do need it:</strong> running <code>kinit</code> directly, PKINIT cert auth in some flows, certain edge cases where a tool internally calls libkrb5.</div>
+<pre><span class="c"># Quick check — do you need it for this engagement?</span>
+<span class="c"># Run any impacket Kerberos command. If it works → you don't need krb5.conf.</span>
+<span class="c"># If you get "kinit: Cannot find KDC" → you need it.</span>
+
+<span class="c"># If you need it, use the template (installed by install-ad-tools.sh):</span>
+sudo cp /etc/krb5.conf.template /etc/krb5.conf
+sudo nano /etc/krb5.conf
+
+<span class="c"># Change these two values:</span>
+<span class="c">#   CORP.LOCAL          → your target domain (UPPERCASE)</span>
+<span class="c">#   dc01.corp.local     → target DC's FQDN (lowercase)</span>
+
+<span class="c"># Shortcut alias does the copy + opens nano:</span>
+krb-template</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">minimal krb5.conf — copy/paste version</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> If you don't have the install script's template, this is the minimum working config. Replace CORP.LOCAL and dc01.corp.local with your target.</div>
+<pre>sudo tee /etc/krb5.conf &lt;&lt; 'EOF'
+[libdefaults]
+    default_realm = CORP.LOCAL
+    dns_lookup_realm = false
+    dns_lookup_kdc = false
+    default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 rc4-hmac
+    default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 rc4-hmac
+    permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 rc4-hmac
+
+[realms]
+    CORP.LOCAL = {
+        kdc = dc01.corp.local
+        admin_server = dc01.corp.local
+    }
+
+[domain_realm]
+    .corp.local = CORP.LOCAL
+    corp.local = CORP.LOCAL
+EOF</pre></div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">4. Verify the toolkit is ready</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">smoke test — confirm tools work</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> 30-second sanity check that the key tools are installed and reachable. Run this once after install-ad-tools.sh, then again at the start of each exam to be safe.</div>
+<pre><span class="c"># Tool presence + connectivity check:</span>
+nxc --version
+certipy --version
+impacket-secretsdump 2&gt;&amp;1 | head -2
+kerbrute version
+evil-winrm --version
+ldapsearch -VV 2&gt;&amp;1 | head -1
+hashcat --version
+
+<span class="c"># Network reachability to DC:</span>
+ping -c 2 &lt;DC_IP&gt;
+nmap -Pn -p88,135,389,445,464,636,3268,3269,5985 &lt;DC_IP&gt;
+
+<span class="c"># Baseline auth test (replace with real creds if you have them):</span>
+nxc smb &lt;DC_IP&gt;     <span class="c"># anonymous — should at least return DC hostname/OS</span></pre></div>
+
+<div class="note n-good"><strong>Setup checklist before any Kerberos work:</strong><br>
+□ Clock synced to DC (<code>rdate -n &lt;DC_IP&gt;</code>)<br>
+□ DC in /etc/hosts with FQDN<br>
+□ Using FQDN (not IP) in commands<br>
+□ Realm is UPPERCASE in commands and configs<br>
+□ Domain creds verified working with one nxc smb call<br>
+Skip any of these → you'll get a confusing Kerberos error and waste time debugging the wrong thing.</div>
+</div>
+</details>
 
 
     <div class="stage stage-unauth" id="stage-unauth">
