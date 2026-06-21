@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AD Theory | Psalm OSCP</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg3: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --accent3: #f78166;
+      --accent4: #d2a8ff;
+      --yellow: #e3b341;
+      --code-bg: #161b22;
+      --tag-bg: #1f2937;
+      --critical: #da3633;
+      --critical-bg: #1a0a0a;
+      --signal-bg: #0d1f0d;
+      --signal-border: #3fb950;
+      --moveon-bg: #0d1a2e;
+      --moveon-border: #1f6feb;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    .nav {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .nav a:hover { text-decoration: underline; }
+    .nav .sep { color: var(--muted); }
+
+    /* LAYOUT */
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      max-width: 1200px;
+      margin: 0 auto;
+      gap: 0;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      position: sticky;
+      top: 45px;
+      height: calc(100vh - 45px);
+      overflow-y: auto;
+      padding: 24px 16px;
+      border-right: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .sidebar-label {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      padding-left: 8px;
+    }
+    .sidebar ul { list-style: none; }
+    .sidebar ul li { margin: 1px 0; }
+    .sidebar ul li a {
+      color: var(--muted);
+      text-decoration: none;
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .sidebar ul li a:hover {
+      color: var(--text);
+      background: var(--bg3);
+    }
+    .sidebar .section-group { margin-bottom: 16px; }
+
+    /* MAIN */
+    .main {
+      padding: 32px 40px 80px;
+      min-width: 0;
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* SECTIONS */
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 40px 0 16px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      scroll-margin-top: 60px;
+    }
+    h2:first-of-type { border-top: none; }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent4);
+      margin: 24px 0 10px;
+      scroll-margin-top: 60px;
+    }
+
+    p {
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.65;
+    }
+
+    /* CODE BLOCKS */
+    .code-block {
+      position: relative;
+      margin: 12px 0 20px;
+    }
+    .code-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      padding: 6px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+    .copy-btn.copied { color: var(--accent2); border-color: var(--accent2); }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 0 0 6px 6px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .code-block-no-label pre {
+      border-radius: 6px;
+    }
+
+    /* INLINE CODE */
+    code {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12px;
+      color: var(--accent4);
+    }
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    /* COMMENT COLORS IN CODE */
+    .c { color: var(--muted); }
+    .kw { color: var(--accent); }
+    .str { color: var(--accent2); }
+
+    /* CALLOUT BOXES */
+    .callout {
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 13px;
+      border-left: 3px solid;
+    }
+    .callout.theory {
+      background: #1a1a2e;
+      border-color: var(--accent4);
+      color: #c9d1d9;
+    }
+    .callout.warning {
+      background: var(--critical-bg);
+      border-color: var(--critical);
+      color: #c9d1d9;
+    }
+    .callout.tip {
+      background: var(--signal-bg);
+      border-color: var(--accent2);
+      color: #c9d1d9;
+    }
+    .callout strong { color: var(--text); }
+
+    /* SIGNAL + MOVE-ON */
+    .signal {
+      background: var(--signal-bg);
+      border: 1px solid var(--signal-border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin: 8px 0;
+      font-size: 12.5px;
+    }
+    .signal .signal-title {
+      color: var(--accent2);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .signal p { color: #c9d1d9; margin: 0; font-size: 12.5px; }
+    .signal code { font-size: 11.5px; }
+
+    .moveon {
+      background: var(--moveon-bg);
+      border: 1px solid var(--moveon-border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin: 16px 0 8px;
+      font-size: 12.5px;
+    }
+    .moveon .moveon-title {
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .moveon ul { list-style: none; padding: 0; }
+    .moveon ul li {
+      color: #c9d1d9;
+      padding: 2px 0;
+      padding-left: 16px;
+      position: relative;
+      font-size: 12.5px;
+    }
+    .moveon ul li::before {
+      content: '✓';
+      color: var(--accent);
+      position: absolute;
+      left: 0;
+      font-size: 11px;
+    }
+
+    /* BADGE TAGS */
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 16px; }
+    .tag {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'SF Mono', monospace;
+    }
+    .tag.red { border-color: var(--critical); color: #f85149; background: var(--critical-bg); }
+    .tag.green { border-color: var(--accent2); color: var(--accent2); background: var(--signal-bg); }
+    .tag.blue { border-color: var(--accent); color: var(--accent); background: var(--moveon-bg); }
+    .tag.purple { border-color: var(--accent4); color: var(--accent4); background: #1a1a2e; }
+
+    /* TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 12.5px;
+    }
+    th {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      color: #c9d1d9;
+      vertical-align: top;
+    }
+    tr:hover td { background: var(--bg2); }
+    td code { font-size: 11.5px; }
+
+    /* HEURISTIC CARDS */
+    .heuristic-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .heuristic-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .heuristic-card .num {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+      margin-bottom: 4px;
+    }
+    .heuristic-card .title {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .heuristic-card .body {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    /* FLOW DIAGRAM */
+    .flow {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.8;
+      margin: 12px 0 20px;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .flow .hl { color: var(--accent2); }
+    .flow .acc { color: var(--accent); }
+    .flow .warn { color: var(--yellow); }
+
+    /* ACRONYM TABLE HIGHLIGHT */
+    td strong { color: var(--accent4); }
+
+    /* SECTION DIVIDER */
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 48px 0 0;
+    }
+
+    /* FOOTER */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 40px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main { padding: 20px 16px 60px; }
+      .heuristic-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a>
+  <span class="sep">←</span>
+  <a href="https://difficultsnow.github.io/oscp-methodology/index.html">Psalm OSCP Methodology</a>
+</nav>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+
+    <div class="section-group">
+      <ul>
+        <li><a href="#prereqs">Prerequisites — The Why</a></li>
+        <li><a href="#kerberos-flow">Kerberos Flow</a></li>
+        <li><a href="#acronyms">Acronym Guide</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-label">Visual</div>
+    <div class="section-group">
+      <ul>
+        <li><a href="#visual">Visual Reference</a></li>
+        <li><a href="#kerb-diagram">Kerberos Flow</a></li>
+        <li><a href="#attack-chain">Attack Chain</a></li>
+        <li><a href="#noise">OPSEC Noise</a></li>
+        <li><a href="#lookup">When You See X…</a></li>
+        <li><a href="#cred-types">Credential Types</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-label">Modules</div>
+    <div class="section-group">
+      <ul>
+        <li><a href="#mod1">1 — AD Fundamentals</a></li>
+        <li><a href="#mod2">2 — Enumeration</a></li>
+        <li><a href="#mod3">3 — Credential Attacks</a></li>
+        <li><a href="#mod4">4 — Lateral Movement</a></li>
+        <li><a href="#mod5">5 — Privilege Escalation</a></li>
+        <li><a href="#mod6">6 — ADCS Attacks</a></li>
+        <li><a href="#mod7">7 — Domain Persistence</a></li>
+        <li><a href="#mod8">8 — Forest &amp; Trusts</a></li>
+        <li><a href="#mod9">9 — OPSEC</a></li>
+        <li><a href="#mod10">10 — Capstone Flow</a></li>
+      </ul>
+    </div>
+
+    <div class="sidebar-label">Reference</div>
+    <div class="section-group">
+      <ul>
+        <li><a href="#heuristics">Core Heuristics</a></li>
+        <li><a href="#decision-tree">No Path to DA</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="page-title">🧠 AD Theory Review</div>
+    <div class="page-subtitle">
+      Pure theory — the why behind every AD attack. Read this before touching labs.
+      No commands here — that's <a href="05-active-directory.html" style="color:var(--accent)">05-active-directory.html</a>.
+      This answers why those commands work.
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- VISUAL REFERENCE — DIAGRAMS + QUICK LOOKUP                    -->
+    <!-- ============================================================ -->
+    <h2 id="visual">📊 Visual Reference</h2>
+
+    <h3 id="kerb-diagram">The Kerberos Flow — Where Every Attack Lives</h3>
+    <p>Every Kerberos attack hits one of these 5 steps. Knowing the step tells you the attack.</p>
+
+    <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 12px 0 24px; overflow-x: auto;">
+      <svg viewBox="0 0 760 540" xmlns="http://www.w3.org/2000/svg" role="img" style="display:block;margin:0 auto;max-width:100%;">
+        <title>Kerberos Authentication Flow</title>
+        <desc>Five-step Kerberos protocol showing client, KDC, and service interactions with attack mapping.</desc>
+        <defs>
+          <marker id="karrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#8b949e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- THREE COLUMNS: CLIENT | KDC | SERVICE -->
+        <rect x="60" y="20" width="140" height="40" rx="20" fill="#0d1f36" stroke="#1f6feb" stroke-width="1.5"/>
+        <text x="130" y="40" text-anchor="middle" dominant-baseline="central" fill="#58a6ff" font-family="'SF Mono',monospace" font-size="14" font-weight="700">CLIENT (you)</text>
+
+        <rect x="310" y="20" width="140" height="40" rx="20" fill="#2d2600" stroke="#d29922" stroke-width="1.5"/>
+        <text x="380" y="40" text-anchor="middle" dominant-baseline="central" fill="#d29922" font-family="'SF Mono',monospace" font-size="14" font-weight="700">KDC (on DC)</text>
+
+        <rect x="560" y="20" width="140" height="40" rx="20" fill="#1a2e2a" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="630" y="40" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'SF Mono',monospace" font-size="14" font-weight="700">SERVICE</text>
+
+        <!-- VERTICAL LANE LINES -->
+        <line x1="130" y1="60" x2="130" y2="520" stroke="#30363d" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="380" y1="60" x2="380" y2="520" stroke="#30363d" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="630" y1="60" x2="630" y2="520" stroke="#30363d" stroke-width="1" stroke-dasharray="4 4"/>
+
+        <!-- STEP 1: AS-REQ -->
+        <line x1="130" y1="100" x2="370" y2="100" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#karrow)"/>
+        <text x="250" y="88" text-anchor="middle" fill="#58a6ff" font-family="'SF Mono',monospace" font-size="12" font-weight="600">1. AS-REQ</text>
+        <text x="250" y="113" text-anchor="middle" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">username + encrypted timestamp</text>
+
+        <!-- STEP 2: AS-REP -->
+        <line x1="370" y1="160" x2="140" y2="160" stroke="#d29922" stroke-width="1.5" marker-end="url(#karrow)"/>
+        <text x="250" y="148" text-anchor="middle" fill="#d29922" font-family="'SF Mono',monospace" font-size="12" font-weight="600">2. AS-REP</text>
+        <text x="250" y="173" text-anchor="middle" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">TGT (encrypted with KRBTGT hash)</text>
+
+        <!-- ATTACK BOX: AS-REP ROAST -->
+        <rect x="20" y="190" width="220" height="36" rx="6" fill="#1a0a0a" stroke="#da3633" stroke-width="1"/>
+        <text x="130" y="207" text-anchor="middle" dominant-baseline="central" fill="#f85149" font-family="'SF Mono',monospace" font-size="11" font-weight="600">⚔ AS-REP ROAST</text>
+        <text x="130" y="220" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-family="'SF Mono',monospace" font-size="9">pre-auth disabled → blob crackable</text>
+
+        <!-- STEP 3: TGS-REQ -->
+        <line x1="130" y1="260" x2="370" y2="260" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#karrow)"/>
+        <text x="250" y="248" text-anchor="middle" fill="#58a6ff" font-family="'SF Mono',monospace" font-size="12" font-weight="600">3. TGS-REQ</text>
+        <text x="250" y="273" text-anchor="middle" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">TGT + requested SPN</text>
+
+        <!-- STEP 4: TGS-REP -->
+        <line x1="370" y1="320" x2="140" y2="320" stroke="#d29922" stroke-width="1.5" marker-end="url(#karrow)"/>
+        <text x="250" y="308" text-anchor="middle" fill="#d29922" font-family="'SF Mono',monospace" font-size="12" font-weight="600">4. TGS-REP</text>
+        <text x="250" y="333" text-anchor="middle" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">service ticket (encrypted with SVC hash)</text>
+
+        <!-- ATTACK BOX: KERBEROAST -->
+        <rect x="20" y="350" width="220" height="36" rx="6" fill="#1a0a0a" stroke="#da3633" stroke-width="1"/>
+        <text x="130" y="367" text-anchor="middle" dominant-baseline="central" fill="#f85149" font-family="'SF Mono',monospace" font-size="11" font-weight="600">⚔ KERBEROAST</text>
+        <text x="130" y="380" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-family="'SF Mono',monospace" font-size="9">request any SPN → crack offline</text>
+
+        <!-- STEP 5: AP-REQ -->
+        <line x1="140" y1="420" x2="620" y2="420" stroke="#3fb950" stroke-width="1.5" marker-end="url(#karrow)"/>
+        <text x="380" y="408" text-anchor="middle" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12" font-weight="600">5. AP-REQ</text>
+        <text x="380" y="433" text-anchor="middle" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">service ticket → service (KDC not involved!)</text>
+
+        <!-- ATTACK BOX: SILVER TICKET -->
+        <rect x="540" y="450" width="180" height="36" rx="6" fill="#1a0a0a" stroke="#da3633" stroke-width="1"/>
+        <text x="630" y="467" text-anchor="middle" dominant-baseline="central" fill="#f85149" font-family="'SF Mono',monospace" font-size="11" font-weight="600">⚔ SILVER TICKET</text>
+        <text x="630" y="480" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-family="'SF Mono',monospace" font-size="9">forge ticket, never touches KDC</text>
+
+        <!-- ATTACK BOX: GOLDEN TICKET (KDC) -->
+        <rect x="300" y="450" width="160" height="36" rx="6" fill="#1a0a0a" stroke="#da3633" stroke-width="1"/>
+        <text x="380" y="467" text-anchor="middle" dominant-baseline="central" fill="#f85149" font-family="'SF Mono',monospace" font-size="11" font-weight="600">⚔ GOLDEN TICKET</text>
+        <text x="380" y="480" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-family="'SF Mono',monospace" font-size="9">forge TGT with KRBTGT hash</text>
+      </svg>
+    </div>
+
+    <h3 id="attack-chain">Attack Chain — From Zero to KRBTGT</h3>
+    <p>The high-level path every AD compromise follows. Each box maps to a section in <a href="05-active-directory.html">05-active-directory.html</a>.</p>
+
+    <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 12px 0 24px; overflow-x: auto;">
+      <svg viewBox="0 0 760 600" xmlns="http://www.w3.org/2000/svg" role="img" style="display:block;margin:0 auto;max-width:100%;">
+        <title>AD Attack Chain</title>
+        <desc>Linear flow from no access to domain compromise via key intermediate stages.</desc>
+        <defs>
+          <marker id="aarrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- START -->
+        <rect x="280" y="20" width="200" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+        <text x="380" y="38" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="14" font-weight="500">No access</text>
+        <text x="380" y="56" text-anchor="middle" dominant-baseline="central" fill="#8b949e" font-family="'SF Mono',monospace" font-size="11">network position, no creds</text>
+
+        <line x1="380" y1="70" x2="380" y2="100" stroke="#58a6ff" stroke-width="2" marker-end="url(#aarrow)"/>
+
+        <!-- STAGE 1: GET ANY CRED -->
+        <a href="05-active-directory.html#unauth-asrep">
+          <rect x="220" y="100" width="320" height="60" rx="8" fill="#0d1f36" stroke="#1f6feb"/>
+          <text x="380" y="121" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="14" font-weight="600">1. Get ANY domain credential</text>
+          <text x="380" y="143" text-anchor="middle" dominant-baseline="central" fill="#58a6ff" font-family="'SF Mono',monospace" font-size="11">spray • AS-REP roast • LLMNR • SYSVOL</text>
+        </a>
+
+        <line x1="380" y1="160" x2="380" y2="190" stroke="#58a6ff" stroke-width="2" marker-end="url(#aarrow)"/>
+
+        <!-- STAGE 2: BLOODHOUND -->
+        <a href="05-active-directory.html#bloodhound">
+          <rect x="220" y="190" width="320" height="60" rx="8" fill="#1a2e2a" stroke="#3fb950"/>
+          <text x="380" y="211" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="14" font-weight="600">2. BloodHound — find the path</text>
+          <text x="380" y="233" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'SF Mono',monospace" font-size="11">shortest path • ACL edges • Kerberoastable</text>
+        </a>
+
+        <line x1="380" y1="250" x2="380" y2="280" stroke="#58a6ff" stroke-width="2" marker-end="url(#aarrow)"/>
+
+        <!-- STAGE 3: EXECUTE -->
+        <a href="05-active-directory.html#acl">
+          <rect x="100" y="280" width="240" height="60" rx="8" fill="#2d2a3e" stroke="#bc8cff"/>
+          <text x="220" y="301" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="13" font-weight="600">3a. ACL / GPO abuse</text>
+          <text x="220" y="323" text-anchor="middle" dominant-baseline="central" fill="#bc8cff" font-family="'SF Mono',monospace" font-size="11">if path exists in BloodHound</text>
+        </a>
+
+        <a href="05-active-directory.html#adcs">
+          <rect x="420" y="280" width="240" height="60" rx="8" fill="#2d2a3e" stroke="#bc8cff"/>
+          <text x="540" y="301" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="13" font-weight="600">3b. ADCS / Delegation</text>
+          <text x="540" y="323" text-anchor="middle" dominant-baseline="central" fill="#bc8cff" font-family="'SF Mono',monospace" font-size="11">if no direct BloodHound path</text>
+        </a>
+
+        <line x1="220" y1="340" x2="320" y2="380" stroke="#58a6ff" stroke-width="2" marker-end="url(#aarrow)"/>
+        <line x1="540" y1="340" x2="440" y2="380" stroke="#58a6ff" stroke-width="2" marker-end="url(#aarrow)"/>
+
+        <!-- STAGE 4: LATERAL -->
+        <a href="05-active-directory.html#lateral">
+          <rect x="220" y="380" width="320" height="60" rx="8" fill="#2d2600" stroke="#d29922"/>
+          <text x="380" y="401" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="14" font-weight="600">4. Lateral — sweep hashes + sessions</text>
+          <text x="380" y="423" text-anchor="middle" dominant-baseline="central" fill="#d29922" font-family="'SF Mono',monospace" font-size="11">PtH • PtT • LSASS on every owned host</text>
+        </a>
+
+        <line x1="380" y1="440" x2="380" y2="470" stroke="#58a6ff" stroke-width="2" marker-end="url(#aarrow)"/>
+
+        <!-- STAGE 5: DCSYNC -->
+        <a href="05-active-directory.html#dcsync">
+          <rect x="220" y="470" width="320" height="60" rx="8" fill="#1a0a0a" stroke="#da3633"/>
+          <text x="380" y="491" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'SF Mono',monospace" font-size="14" font-weight="700">5. DCSync → KRBTGT hash</text>
+          <text x="380" y="513" text-anchor="middle" dominant-baseline="central" fill="#f85149" font-family="'SF Mono',monospace" font-size="11">domain owned • forge anything forever</text>
+        </a>
+
+        <line x1="380" y1="530" x2="380" y2="560" stroke="#3fb950" stroke-width="2" marker-end="url(#aarrow)"/>
+
+        <!-- END -->
+        <rect x="290" y="560" width="180" height="34" rx="17" fill="#1a2e2a" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="380" y="577" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'SF Mono',monospace" font-size="13" font-weight="700">proof.txt ✓</text>
+
+        <!-- FEEDBACK LOOP -->
+        <path d="M 100 410 Q 30 410 30 220 Q 30 130 215 130" fill="none" stroke="#6e7681" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#aarrow)"/>
+        <text x="55" y="305" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">every new</text>
+        <text x="55" y="320" fill="#8b949e" font-family="'SF Mono',monospace" font-size="10">cred → loop</text>
+      </svg>
+    </div>
+
+    <h3 id="noise">OPSEC Noise Spectrum</h3>
+    <p>Every action sits somewhere on this spectrum. During exam-style work this doesn't matter; in a real engagement, pick deliberately.</p>
+
+    <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 12px 0 24px; overflow-x: auto;">
+      <svg viewBox="0 0 700 460" xmlns="http://www.w3.org/2000/svg" role="img" style="display:block;margin:0 auto;max-width:100%;">
+        <title>OPSEC Noise Spectrum</title>
+        <desc>Vertical scale from loudest attacks at top to quietest at bottom.</desc>
+
+        <!-- Gradient bar -->
+        <defs>
+          <linearGradient id="noisegrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#da3633" stop-opacity="0.3"/>
+            <stop offset="50%" stop-color="#d29922" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#3fb950" stop-opacity="0.3"/>
+          </linearGradient>
+        </defs>
+        <rect x="50" y="30" width="40" height="400" fill="url(#noisegrad)" stroke="#30363d" rx="4"/>
+
+        <!-- LABELS -->
+        <text x="70" y="22" text-anchor="middle" fill="#f85149" font-family="'SF Mono',monospace" font-size="12" font-weight="700">LOUDEST</text>
+        <text x="70" y="450" text-anchor="middle" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12" font-weight="700">QUIETEST</text>
+
+        <!-- ITEMS -->
+        <text x="110" y="50" fill="#f85149" font-family="'SF Mono',monospace" font-size="12" font-weight="600">Mimikatz on disk + run directly</text>
+        <text x="110" y="80" fill="#f85149" font-family="'SF Mono',monospace" font-size="12">PSExec lateral movement</text>
+        <text x="110" y="110" fill="#f85149" font-family="'SF Mono',monospace" font-size="12">SharpHound (10k LDAP in 30s)</text>
+        <text x="110" y="140" fill="#f85149" font-family="'SF Mono',monospace" font-size="12">Password spray (too fast → lockout)</text>
+        <text x="110" y="170" fill="#f85149" font-family="'SF Mono',monospace" font-size="12">LSASS dump via Task Manager</text>
+
+        <text x="110" y="210" fill="#d29922" font-family="'SF Mono',monospace" font-size="12">WMI execution</text>
+        <text x="110" y="240" fill="#d29922" font-family="'SF Mono',monospace" font-size="12">WinRM lateral movement</text>
+        <text x="110" y="270" fill="#d29922" font-family="'SF Mono',monospace" font-size="12">Targeted LDAP queries</text>
+
+        <text x="110" y="310" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12">Kerberoasting (single AES request)</text>
+        <text x="110" y="340" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12">DCOnly BloodHound collection</text>
+        <text x="110" y="370" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12">LDAP reads (looks like normal admin)</text>
+        <text x="110" y="400" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12">LOLBins (signed, expected)</text>
+        <text x="110" y="430" fill="#3fb950" font-family="'SF Mono',monospace" font-size="12" font-weight="600">Silver Ticket (zero DC logs)</text>
+      </svg>
+    </div>
+
+    <h3 id="lookup">When You See X, Think Y — Quick Lookup</h3>
+    <p>Output signals from the wire/console mapped to the underlying theory and the section that handles them.</p>
+
+    <table>
+      <thead><tr><th style="width:30%">When you see this…</th><th style="width:30%">It means…</th><th style="width:25%">Theory</th><th style="width:15%">Command</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>$krb5tgs$23$</code> hash</td>
+          <td>TGS encrypted with SVC hash (RC4)</td>
+          <td>Property 1 — KDC issues TGS to anyone</td>
+          <td><a href="05-active-directory.html#kerberoast">Kerberoast</a></td>
+        </tr>
+        <tr>
+          <td><code>$krb5asrep$23$</code> hash</td>
+          <td>AS-REP with pre-auth disabled</td>
+          <td>Property 4 — pre-auth optional</td>
+          <td><a href="05-active-directory.html#asrep">AS-REP roast</a></td>
+        </tr>
+        <tr>
+          <td>Net-NTLMv2 in Responder</td>
+          <td>NTLM challenge-response (NOT a hash)</td>
+          <td>NTLM is fallback; relay or crack only</td>
+          <td><a href="05-active-directory.html#coerce">Coercion</a></td>
+        </tr>
+        <tr>
+          <td>SMB signing: Disabled</td>
+          <td>NTLM relay target — direct execution</td>
+          <td>Workstations default to no signing</td>
+          <td><a href="05-active-directory.html#coerce">Coercion</a></td>
+        </tr>
+        <tr>
+          <td>SMB signing: Required (DC)</td>
+          <td>Relay to SMB blocked. Try LDAP/HTTP/ADCS.</td>
+          <td>Signing protects relay, not capture</td>
+          <td><a href="05-active-directory.html#adcs">ADCS relay</a></td>
+        </tr>
+        <tr>
+          <td>BloodHound: GenericAll edge</td>
+          <td>Full control over target object</td>
+          <td>ACL is just an LDAP attribute</td>
+          <td><a href="05-active-directory.html#acl">ACL abuse</a></td>
+        </tr>
+        <tr>
+          <td>BloodHound: WriteDACL edge</td>
+          <td>Modify ACL → grant yourself GenericAll/DCSync</td>
+          <td>WriteDACL = write to ACL itself</td>
+          <td><a href="05-active-directory.html#acl">ACL abuse</a></td>
+        </tr>
+        <tr>
+          <td>BloodHound: ReadLAPSPassword</td>
+          <td>You can read local admin password</td>
+          <td>LAPS = plaintext password in LDAP attr</td>
+          <td><a href="05-active-directory.html#laps">LAPS</a></td>
+        </tr>
+        <tr>
+          <td>Unconstrained delegation: TRUE</td>
+          <td>Any user auth → TGT in LSASS on that machine</td>
+          <td>Coerce + capture = DA TGT</td>
+          <td><a href="05-active-directory.html#delegation">Delegation</a></td>
+        </tr>
+        <tr>
+          <td>GenericWrite on Computer obj</td>
+          <td>Configure RBCD → impersonate DA to that machine</td>
+          <td>RBCD = backward constrained delegation</td>
+          <td><a href="05-active-directory.html#delegation">Delegation</a></td>
+        </tr>
+        <tr>
+          <td>certipy: ESC1</td>
+          <td>Template allows SAN → request cert as DA</td>
+          <td>Authorization at CA, not on user</td>
+          <td><a href="05-active-directory.html#adcs">ADCS</a></td>
+        </tr>
+        <tr>
+          <td>certipy: Web Enrollment Enabled</td>
+          <td>HTTP endpoint → NTLM relay target (ESC8)</td>
+          <td>HTTP enrollment accepts NTLM by default</td>
+          <td><a href="05-active-directory.html#adcs">ADCS</a></td>
+        </tr>
+        <tr>
+          <td><code>(Pwn3d!)</code> in CME output</td>
+          <td>Local admin on that host</td>
+          <td>Hash gives local admin everywhere if reused</td>
+          <td><a href="05-active-directory.html#lateral">Lateral</a></td>
+        </tr>
+        <tr>
+          <td><code>cpassword=</code> in SYSVOL XML</td>
+          <td>GPP-stored cred (MS14-025 leftover)</td>
+          <td>Decryption key was publicly published</td>
+          <td><a href="05-active-directory.html#sysvol">SYSVOL</a></td>
+        </tr>
+        <tr>
+          <td><code>$DCC2$</code> hash (from secretsdump)</td>
+          <td>Cached domain logon — must crack, can't PtH</td>
+          <td>DCC2 is salted+iterated, not raw NTLM</td>
+          <td><a href="05-active-directory.html#local-enum">Local enum</a></td>
+        </tr>
+        <tr>
+          <td><code>SeImpersonatePrivilege</code> enabled</td>
+          <td>Token impersonation → potato to SYSTEM</td>
+          <td>Service account default privilege</td>
+          <td><a href="05-active-directory.html#local-enum">Local enum</a></td>
+        </tr>
+        <tr>
+          <td>secretsdump → <code>krbtgt:</code> hash</td>
+          <td>You control all Kerberos forever</td>
+          <td>KRBTGT signs all TGTs — Golden Ticket</td>
+          <td><a href="05-active-directory.html#dcsync">DCSync</a></td>
+        </tr>
+        <tr>
+          <td>KDC_ERR_PREAUTH_FAILED</td>
+          <td>Wrong password OR clock skew &gt; 5min</td>
+          <td>Pre-auth verifies via encrypted timestamp</td>
+          <td><a href="05-active-directory.html#kerb-errors">Errors</a></td>
+        </tr>
+        <tr>
+          <td>KDC_ERR_C_PRINCIPAL_UNKNOWN</td>
+          <td>Using IP instead of FQDN with Kerberos</td>
+          <td>Kerberos binds to hostnames not IPs</td>
+          <td><a href="05-active-directory.html#kerb-errors">Errors</a></td>
+        </tr>
+        <tr>
+          <td>nltest /domain_trusts → result</td>
+          <td>Cross-domain attack surface exists</td>
+          <td>Parent-child = always exploitable</td>
+          <td><a href="05-active-directory.html#trusts">Trusts</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 id="cred-types">Credential Material — What You Can Do With Each</h3>
+    <p>Determines the technique to use. Credentials are fungible — convert between forms when needed.</p>
+
+    <table>
+      <thead><tr><th>You have…</th><th>You can…</th><th>Convert to…</th><th>Section</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Plaintext password</td>
+          <td>Everything — all auth methods</td>
+          <td>NTLM hash (via getTGT, secretsdump)</td>
+          <td><a href="05-active-directory.html#lateral">Lateral</a></td>
+        </tr>
+        <tr>
+          <td>NTLM hash</td>
+          <td>PtH (SMB, WMI, WinRM)</td>
+          <td>TGT (Overpass-the-Hash)</td>
+          <td><a href="05-active-directory.html#lateral">Lateral</a></td>
+        </tr>
+        <tr>
+          <td>Net-NTLMv2 (captured)</td>
+          <td>Crack offline OR relay only</td>
+          <td>Cannot convert directly</td>
+          <td><a href="05-active-directory.html#coerce">Coercion</a></td>
+        </tr>
+        <tr>
+          <td>TGT (.ccache)</td>
+          <td>Request any TGS for any SPN</td>
+          <td>Any service ticket (TGS)</td>
+          <td><a href="05-active-directory.html#ptt">PtT</a></td>
+        </tr>
+        <tr>
+          <td>TGS for one service</td>
+          <td>That specific service only</td>
+          <td>Cannot upgrade to TGT</td>
+          <td><a href="05-active-directory.html#ptt">PtT</a></td>
+        </tr>
+        <tr>
+          <td>Certificate (.pfx)</td>
+          <td>PKINIT → get TGT</td>
+          <td>TGT + NT hash (via certipy auth)</td>
+          <td><a href="05-active-directory.html#adcs">ADCS</a></td>
+        </tr>
+        <tr>
+          <td>DCC2 hash</td>
+          <td>Crack offline only</td>
+          <td>Plaintext if cracked</td>
+          <td><a href="05-active-directory.html#local-enum">Local enum</a></td>
+        </tr>
+        <tr>
+          <td>KRBTGT hash</td>
+          <td>Forge any TGT for any user forever</td>
+          <td>Golden Ticket → full domain forever</td>
+          <td><a href="05-active-directory.html#dcsync">DCSync</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+
+    <!-- ============================================================ -->
+    <h2 id="prereqs">Prerequisites — The Why</h2>
+
+    <h3 id="ad-is-db">AD Is a Database</h3>
+    <p>
+      NTDS.dit is the actual AD database on every DC. Every attack — Kerberoasting, DCSync, ACL abuse —
+      is ultimately reading or writing entries in that database via LDAP. Understanding objects and
+      attributes is understanding what you're attacking.
+    </p>
+
+    <h3 id="kerberos-properties">The Four Properties That Explain Kerberos Attacks</h3>
+
+    <div class="callout theory">
+      <strong>Property 1 — KDC never validates authorization when issuing a TGS.</strong><br>
+      It checks the TGT is valid, then issues the ticket. Authorization happens at the <em>service</em>, not the KDC.
+      This is why Kerberoasting works — any authenticated user can request a TGS for any SPN.
+    </div>
+
+    <div class="callout theory">
+      <strong>Property 2 — The KDC trusts the KRBTGT hash absolutely.</strong><br>
+      TGTs are encrypted with KRBTGT. The KDC can't tell if a TGT was legitimately issued or forged.
+      Golden Tickets exploit this — forge a TGT with the KRBTGT hash and the KDC accepts it unconditionally.
+    </div>
+
+    <div class="callout theory">
+      <strong>Property 3 — Service tickets are encrypted with the service account's hash.</strong><br>
+      The KDC never sees inside the TGS it issues. Silver Tickets exploit this — forge a TGS with the
+      service account hash and present it directly to the service. The KDC is never involved. Zero DC logs.
+    </div>
+
+    <div class="callout theory">
+      <strong>Property 4 — Pre-authentication is optional.</strong><br>
+      Normally AS-REQ includes a timestamp encrypted with the user's hash. If pre-auth is disabled,
+      the KDC sends back the AS-REP blob without proof of identity. AS-REP Roasting exploits this.
+    </div>
+
+    <h3 id="kerberos-flow">The Full Kerberos Flow</h3>
+    <p>Attacks mapped to the step where they intervene:</p>
+
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Direction</th><th>What Happens</th><th>Attack Here</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>AS-REQ</td><td>Client → KDC</td><td>Send username + encrypted timestamp</td><td>Username enumeration (plaintext in packet)</td></tr>
+        <tr><td>AS-REP</td><td>KDC → Client</td><td>Return TGT encrypted with KRBTGT hash</td><td><strong>AS-REP Roasting</strong> / Golden Ticket</td></tr>
+        <tr><td>TGS-REQ</td><td>Client → KDC</td><td>Present TGT, request service ticket for SPN</td><td>Pass-the-Ticket (stolen TGT used here)</td></tr>
+        <tr><td>TGS-REP</td><td>KDC → Client</td><td>Return service ticket encrypted with SVC hash</td><td><strong>Kerberoasting</strong></td></tr>
+        <tr><td>AP-REQ</td><td>Client → Service</td><td>Present service ticket directly to service</td><td><strong>Silver Ticket</strong> (KDC not involved)</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="ntlm-smb">NTLM &amp; SMB — The Critical Distinction</h3>
+
+    <div class="callout tip">
+      <strong>Net-NTLMv2 ≠ NTLM hash.</strong> Net-NTLMv2 is the captured challenge-response.
+      You can crack it offline or relay it — but you <em>cannot</em> Pass-the-Hash with it.
+      NTLM hash = PtH directly. Most common confusion point in AD attacks.
+    </div>
+
+    <p>SMB signing and what it actually blocks:</p>
+    <table>
+      <thead><tr><th>Situation</th><th>What You Can Do</th></tr></thead>
+      <tbody>
+        <tr><td>No creds, signing <strong>disabled</strong></td><td>Relay NTLM auth to SMB → direct execution</td></tr>
+        <tr><td>No creds, signing <strong>enabled</strong></td><td>Capture Net-NTLMv2 → crack offline, or relay to LDAP/HTTP/ADCS</td></tr>
+        <tr><td>Have NTLM hash, signing enabled</td><td>PtH directly — signing doesn't block PtH</td></tr>
+        <tr><td>Have NTLM hash, signing disabled</td><td>PtH, or relay coerced auth from that machine elsewhere</td></tr>
+      </tbody>
+    </table>
+
+    <p>DCs have SMB signing required by default. Workstations do not. This gap is the relay target.</p>
+
+    <h3 id="ldap-sql">LDAP = SQL for AD</h3>
+    <table>
+      <thead><tr><th>SQL</th><th>LDAP Equivalent</th></tr></thead>
+      <tbody>
+        <tr><td>SELECT</td><td>Search operation</td></tr>
+        <tr><td>WHERE</td><td>Search filter <code>(&amp;(objectClass=user)(servicePrincipalName=*))</code></td></tr>
+        <tr><td>Table</td><td>Object class (user, computer, group)</td></tr>
+        <tr><td>Row</td><td>Object (a specific user, computer)</td></tr>
+        <tr><td>Column</td><td>Attribute (sAMAccountName, memberOf, SPN)</td></tr>
+      </tbody>
+    </table>
+    <p>All authenticated domain users can read almost all LDAP attributes by default — by design. Enumeration is free from any foothold.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="acronyms">Acronym Guide</h2>
+
+    <h3>Kerberos &amp; Authentication</h3>
+    <table>
+      <thead><tr><th>Acronym</th><th>Full Name</th><th>What It Is</th></tr></thead>
+      <tbody>
+        <tr><td><strong>KDC</strong></td><td>Key Distribution Center</td><td>Auth server on every DC. Has two halves: AS and TGS. The central trust anchor.</td></tr>
+        <tr><td><strong>AS</strong></td><td>Authentication Service</td><td>KDC half that handles initial login. Issues TGTs.</td></tr>
+        <tr><td><strong>TGT</strong></td><td>Ticket Granting Ticket</td><td>Proof of identity. Encrypted with KRBTGT hash. 10hr lifetime default.</td></tr>
+        <tr><td><strong>TGS</strong></td><td>Ticket Granting Service</td><td>KDC half that issues service tickets. Also loosely refers to the service ticket itself.</td></tr>
+        <tr><td><strong>KRBTGT</strong></td><td>Kerberos TGT Account</td><td>Special account whose hash encrypts all TGTs. Compromise = Golden Ticket.</td></tr>
+        <tr><td><strong>SPN</strong></td><td>Service Principal Name</td><td>Unique service identifier (<code>class/hostname</code>). SPNs on user accounts = Kerberoastable.</td></tr>
+        <tr><td><strong>PKINIT</strong></td><td>Public Key Init</td><td>Kerberos extension for cert-based auth. Certificate → TGT without a password.</td></tr>
+        <tr><td><strong>AS-REQ</strong></td><td>Auth Service Request</td><td>Initial packet. Contains username + encrypted timestamp.</td></tr>
+        <tr><td><strong>AS-REP</strong></td><td>Auth Service Reply</td><td>KDC response. Contains TGT. The crackable blob in AS-REP Roasting.</td></tr>
+        <tr><td><strong>TGS-REQ</strong></td><td>TGS Request</td><td>Request a service ticket. Sends your TGT + target SPN.</td></tr>
+        <tr><td><strong>TGS-REP</strong></td><td>TGS Reply</td><td>Service ticket encrypted with SVC hash. The crackable blob in Kerberoasting.</td></tr>
+        <tr><td><strong>AP-REQ</strong></td><td>Application Request</td><td>Ticket sent directly to service. KDC not involved. Silver Tickets are forged AP-REQs.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>NTLM &amp; Relay</h3>
+    <table>
+      <thead><tr><th>Acronym</th><th>Full Name</th><th>What It Is</th></tr></thead>
+      <tbody>
+        <tr><td><strong>NTLM</strong></td><td>NT LAN Manager</td><td>Fallback auth protocol. Challenge-response. Hash never travels the wire.</td></tr>
+        <tr><td><strong>NTLMv2</strong></td><td>Net-NTLMv2</td><td>Captured challenge-response. Crack offline or relay. <em>Cannot</em> PtH.</td></tr>
+        <tr><td><strong>PtH</strong></td><td>Pass-the-Hash</td><td>Authenticate using NTLM hash directly. No plaintext needed.</td></tr>
+        <tr><td><strong>PtT</strong></td><td>Pass-the-Ticket</td><td>Inject stolen Kerberos ticket into session, authenticate as the owner.</td></tr>
+        <tr><td><strong>LLMNR</strong></td><td>Link-Local Multicast Name Resolution</td><td>Windows name resolution fallback. Responder poisons it to capture NTLMv2.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Active Directory</h3>
+    <table>
+      <thead><tr><th>Acronym</th><th>Full Name</th><th>What It Is</th></tr></thead>
+      <tbody>
+        <tr><td><strong>DC</strong></td><td>Domain Controller</td><td>Server hosting AD. Runs KDC, holds NTDS.dit, serves LDAP/DNS/Kerberos.</td></tr>
+        <tr><td><strong>DA</strong></td><td>Domain Admin</td><td>Member of Domain Admins. High value but not the final goal — KRBTGT hash is.</td></tr>
+        <tr><td><strong>EA</strong></td><td>Enterprise Admin</td><td>Forest-wide admin. Lives in forest root domain only.</td></tr>
+        <tr><td><strong>NTDS.dit</strong></td><td>NT Directory Services</td><td>The actual AD database file on every DC. Contains all hashes.</td></tr>
+        <tr><td><strong>GPO</strong></td><td>Group Policy Object</td><td>Policy container enforcing settings on objects in an OU.</td></tr>
+        <tr><td><strong>ACL</strong></td><td>Access Control List</td><td>List of permissions on an AD object. Source of most hidden attack surface.</td></tr>
+        <tr><td><strong>SID</strong></td><td>Security Identifier</td><td>Unique ID for every security principal. Used in all access control decisions.</td></tr>
+        <tr><td><strong>SYSVOL</strong></td><td>System Volume</td><td>Domain-wide replicated share. World-readable. Contains GPO templates + scripts.</td></tr>
+        <tr><td><strong>LSASS</strong></td><td>Local Security Authority Subsystem</td><td>Windows process storing credential material in memory. Primary dump target.</td></tr>
+        <tr><td><strong>DCSync</strong></td><td>—</td><td>Abuse replication protocol to pull all hashes from DC without touching NTDS.dit.</td></tr>
+        <tr><td><strong>ADCS</strong></td><td>Active Directory Certificate Services</td><td>Microsoft PKI baked into AD. Heavily abusable via default misconfigs.</td></tr>
+        <tr><td><strong>RBCD</strong></td><td>Resource-Based Constrained Delegation</td><td>Write access to computer object → configure delegation → full compromise.</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================ -->
+    <h2 id="mod1">Module 1 — AD Fundamentals</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#bloodhound">AD Fundamentals → 05</a></div>
+    <div class="tags">
+      <span class="tag blue">forest</span><span class="tag blue">domain</span>
+      <span class="tag blue">trusts</span><span class="tag blue">ACLs</span><span class="tag blue">GPOs</span>
+    </div>
+
+    <h3>Forest, Domains, Trusts</h3>
+    <p><strong>Domain</strong> = one NTDS.dit, one KDC, one administrative boundary. <strong>Forest</strong> = collection of domains sharing schema. Enterprise Admins live in the forest root.</p>
+    <div class="callout warning">
+      Domain boundaries are <strong>not</strong> security boundaries in practice.
+      Owning a child domain almost always means owning the forest root via SID history or trust ticket attacks.
+    </div>
+    <p>Trusts are often transitive. Large orgs accumulate forgotten trusts through acquisitions. Old trusts to weakly-secured domains are real attack paths.</p>
+
+    <h3>Object Types — What to Target</h3>
+    <table>
+      <thead><tr><th>Object</th><th>Key Property</th><th>Offensive Relevance</th></tr></thead>
+      <tbody>
+        <tr><td>Users</td><td>SPN set = Kerberoastable</td><td>Target if <code>adminCount=1</code> or DA member</td></tr>
+        <tr><td>Computers</td><td>Authenticate as <code>MACHINE$</code></td><td>Machine account hash usable for lateral movement; SYSTEM = authenticates as machine</td></tr>
+        <tr><td>Service accounts</td><td>Password never expires, SPN set, often over-privileged</td><td>Prime Kerberoast targets; DA membership embarrassingly common</td></tr>
+      </tbody>
+    </table>
+    <p><code>adminCount=1</code> = account touched a protected group at some point. BloodHound surfaces this automatically.</p>
+
+    <h3>ACL Permissions — The Hidden Attack Surface</h3>
+    <table>
+      <thead><tr><th>Permission</th><th>What an Attacker Can Do</th></tr></thead>
+      <tbody>
+        <tr><td>GenericAll</td><td>Full control — reset password, add to groups, modify any attribute</td></tr>
+        <tr><td>GenericWrite</td><td>Write any attribute — set a fake SPN to Kerberoast them</td></tr>
+        <tr><td>WriteDACL</td><td>Modify the ACL itself — grant yourself GenericAll</td></tr>
+        <tr><td>WriteOwner</td><td>Take ownership → modify ACL → GenericAll</td></tr>
+        <tr><td>ForceChangePassword</td><td>Reset password without knowing the current one</td></tr>
+        <tr><td>AddMember</td><td>Add any user to the group</td></tr>
+      </tbody>
+    </table>
+
+    <h3>GPOs as Attack Surface</h3>
+    <p>Write access to a GPO linked to a sensitive OU = code execution on every object in that OU at next refresh (default 90 min). Write access to a GPO linked to the Domain Controllers OU = instant domain compromise.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="mod2">Module 2 — Enumeration</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#auth-enum">Enumeration → 05</a></div>
+    <div class="tags">
+      <span class="tag green">bloodhound</span><span class="tag green">ldap</span>
+      <span class="tag green">sysvol</span><span class="tag green">spns</span>
+    </div>
+
+    <h3>What Enumeration Actually Is</h3>
+    <p>Reading the AD database as a legitimate domain user. No exploitation. No noise. Pure LDAP queries. Three questions: who exists, what's misconfigured, what's the path to DA.</p>
+
+    <h3>The Five Layers</h3>
+    <table>
+      <thead><tr><th>Layer</th><th>What You're Looking For</th><th>Why It Matters</th></tr></thead>
+      <tbody>
+        <tr><td>1 — Domain Structure</td><td>Domain name, DC IPs, functional level, trusts</td><td>Functional level = encryption support. Old = RC4 everywhere = faster cracking.</td></tr>
+        <tr><td>2 — Users &amp; Groups</td><td>All users + last logon, password last set, adminCount. Nested group membership.</td><td>Old passwords = weak. Nested membership: user in GroupA in DA = DA.</td></tr>
+        <tr><td>3 — Attack Surface</td><td>SPNs, pre-auth disabled, unconstrained delegation, LAPS readers</td><td>Direct targeting list. Non-DC with unconstrained delegation = misconfiguration.</td></tr>
+        <tr><td>4 — ACL Enumeration</td><td>Dangerous rights on users, groups, GPOs, OUs</td><td>Most underused layer. BloodHound surfaces hidden privilege chains.</td></tr>
+        <tr><td>5 — Shares &amp; SYSVOL</td><td>Scripts, GPP XML, config files, credentials</td><td>Admins treat internal shares as safe. They're not.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>BloodHound — Why It Changed Everything</h3>
+    <p>Models AD as a graph. Nodes = objects. Edges = relationships and permissions. Finds multi-hop privilege chains in seconds that would take hours manually.</p>
+
+    <div class="callout tip">
+      <strong>When to rerun SharpHound:</strong> one collection per domain context.
+      Not per privilege level. Not per new machine. Per domain.
+      New domain or crossed a trust = rerun. Same domain low-priv = never rerun.
+    </div>
+
+    <h3>Enumeration Mindset</h3>
+    <p>Enumeration is not a phase — it's continuous. Every new credential unlocks more LDAP access. Every new machine reveals new sessions. Loop back every time you move laterally.</p>
+    <div class="callout warning">
+      <strong>Never move to exploitation without finishing enumeration first.</strong>
+      The number of engagements where direct path to DA was visible in BloodHound from the first foothold
+      and the attacker didn't look is embarrassingly high.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2 id="mod3">Module 3 — Credential Attacks</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#kerberoast">Credential Attacks → 05</a></div>
+    <div class="tags">
+      <span class="tag red">kerberoast</span><span class="tag red">as-rep</span>
+      <span class="tag red">relay</span><span class="tag red">spray</span>
+    </div>
+
+    <h3>Credential Material Types</h3>
+    <table>
+      <thead><tr><th>What You Have</th><th>What You Can Do</th></tr></thead>
+      <tbody>
+        <tr><td>Plaintext password</td><td>Everything works</td></tr>
+        <tr><td>NTLM hash</td><td>PtH over SMB, WMI, WinRM</td></tr>
+        <tr><td>Net-NTLMv2</td><td>Relay only — cannot PtH directly</td></tr>
+        <tr><td>Kerberos TGT</td><td>PtT, request any TGS</td></tr>
+        <tr><td>Kerberos TGS</td><td>Use against that specific service only</td></tr>
+        <tr><td>Certificate</td><td>PKINIT → TGT → everything</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Why Each Attack Works</h3>
+    <p><strong>Kerberoasting:</strong> KDC issues TGS to any authenticated user (Property 1). The blob is encrypted with the service account's hash. Take it offline, crack it. No vulnerability exploited — protocol working as designed.</p>
+    <p><strong>AS-REP Roasting:</strong> Pre-auth disabled (Property 4). KDC sends back the AS-REP without verifying identity first. The blob is partially encrypted with the user's hash. Crack offline — no credentials required, just a username.</p>
+    <p><strong>NTLM Relay:</strong> You can't crack Net-NTLMv2 in real time, but you can forward it. Relay to a service that accepts NTLM and you authenticate as the victim. ESC8 is NTLM relay to ADCS HTTP enrollment. SMB relay is NTLM relay to file servers.</p>
+    <p><strong>Password spray:</strong> Password complexity policies force predictable patterns. <code>Winter2024!</code> passes most policies but is guessable. One password across all users = low lockout risk, high yield.</p>
+
+    <h3>Kerberoasting Priority Order</h3>
+    <div class="flow"><span class="hl">SPN + DA member         </span> → crack first, highest impact
+<span class="hl">SPN + adminCount=1      </span> → crack second
+<span class="hl">SPN + password never expires </span> → crack third (likely weak)
+<span class="hl">SPN + regular user      </span> → crack last</div>
+
+    <!-- ============================================================ -->
+    <h2 id="mod4">Module 4 — Lateral Movement</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#lateral">Lateral Movement → 05</a></div>
+    <div class="tags">
+      <span class="tag purple">PtH</span><span class="tag purple">PtT</span>
+      <span class="tag purple">WMI</span><span class="tag purple">sessions</span>
+    </div>
+
+    <h3>What Determines Your Technique</h3>
+    <p>Your credential material type dictates the technique — not preference.</p>
+
+    <div class="flow"><span class="acc">Plaintext    </span>→ everything
+<span class="acc">NTLM hash    </span>→ PtH (SMB, WMI, WinRM)
+<span class="acc">Net-NTLMv2   </span>→ relay only
+<span class="acc">TGT          </span>→ PtT, request any TGS
+<span class="acc">TGS          </span>→ that specific service only
+<span class="acc">Certificate  </span>→ PKINIT → TGT → everything</div>
+
+    <h3>Why Pass-the-Hash Works</h3>
+    <p>NTLM authentication uses the hash directly as the cryptographic secret. The protocol never needs the plaintext — so neither do you. Local admin hash reuse: before LAPS, one cracked local admin hash = local admin on every machine in the domain.</p>
+
+    <h3>Remote Execution: Noisiest → Quietest</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Noise</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>PSExec</td><td>Very high</td><td>Creates a service, drops a binary to disk, triggers AV</td></tr>
+        <tr><td>WMI</td><td>Medium</td><td>No service creation, COM-based</td></tr>
+        <tr><td>WinRM</td><td>Low</td><td>Cleanest for interactive sessions, requires port 5985</td></tr>
+        <tr><td>DCOM</td><td>Very low</td><td>COM objects, less tooling, harder to detect</td></tr>
+        <tr><td>Silver Ticket AP-REQ</td><td>Lowest</td><td>KDC never involved, zero DC event logs</td></tr>
+      </tbody>
+    </table>
+
+    <h3>The Critical: Sessions Are Runtime State</h3>
+    <div class="callout tip">
+      BloodHound = static map (AD configuration). Live machine enumeration = dynamic state (who's here <em>right now</em>).
+      A DA's TGT in LSASS on a machine you just compromised is pure opportunity — but only if you check.
+      <code>--loggedon-users</code> on every new machine. Always.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2 id="mod5">Module 5 — Privilege Escalation</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#acl">Privilege Escalation → 05</a></div>
+    <div class="tags">
+      <span class="tag red">ACL abuse</span><span class="tag red">delegation</span>
+      <span class="tag red">GPO</span><span class="tag red">RBCD</span>
+    </div>
+
+    <h3>What You're Actually Doing</h3>
+    <p>Finding the one misconfiguration that bridges your current access to DA. Almost entirely logic-based — protocol abuse, not memory corruption. The techniques are diverse; the pattern is always the same: find a permission someone set and forgot about.</p>
+
+    <h3>ACL Abuse — The Prod-Safe Priority</h3>
+    <div class="callout warning">
+      <strong>Never reset a service account password without client approval in prod.</strong>
+      Services break immediately. Down services = 2am calls.
+    </div>
+
+    <table>
+      <thead><tr><th>If You Have GenericAll</th><th>Do This First</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Account has existing SPN</td><td>Just Kerberoast it</td><td>Zero modification, reversible, silent</td></tr>
+        <tr><td>No SPN</td><td>Shadow Credentials (pywhisker)</td><td>No password change, service unaffected, cert-based auth</td></tr>
+        <tr><td>No SPN, shadow creds fails</td><td>Fake SPN + Kerberoast + remove SPN</td><td>Minor modification, fully reversible</td></tr>
+        <tr><td>Account confirmed stale</td><td>Password reset</td><td>Nuclear option — confirm service dependency first</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Why Unconstrained Delegation Is So Dangerous</h3>
+    <p>When any user authenticates to a machine with unconstrained delegation, their TGT is automatically forwarded and stored in LSASS on that machine. Combine with a coercion primitive (PetitPotam, PrintSpooler) to force the DC's machine account to authenticate → capture its TGT → DCSync. Non-DC machine with unconstrained delegation = misconfiguration, always investigate.</p>
+
+    <h3>Why RBCD Matters</h3>
+    <p>Resource-Based Constrained Delegation converts <em>write access to a computer object</em> (a common misconfiguration BloodHound surfaces as GenericWrite or WriteProperty) into full compromise of that machine. Any domain user can create up to 10 machine accounts by default — no special privileges needed to set up the attack.</p>
+
+    <h3>AdminSDHolder — Self-Healing Persistence</h3>
+    <p>SDProp runs every 60 min and resets ACLs on all protected accounts to match the AdminSDHolder template. Write an ACE to AdminSDHolder = SDProp propagates it to every DA, EA, and protected account automatically. Survives your removal from DA. Survives most incident response actions. Nobody audits AdminSDHolder ACLs.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="mod6">Module 6 — ADCS Attacks</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#adcs">ADCS Attacks → 05</a></div>
+    <div class="tags">
+      <span class="tag red">ESC1</span><span class="tag red">ESC8</span>
+      <span class="tag red">certipy</span><span class="tag red">PKINIT</span>
+    </div>
+
+    <h3>Why ADCS Is Critical-by-Default</h3>
+    <p>A certificate allowing authentication is functionally equivalent to a password that never expires and survives password resets. That's why ADCS findings are almost always Critical. Run <code>certipy find -vulnerable</code> on every engagement where ADCS is installed — one command, instant Critical findings.</p>
+
+    <h3>ESC1 — Why It Works</h3>
+    <p>Three conditions: <code>CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT</code> flag set + low-priv enrollment rights + Client Authentication purpose. The CA issues the certificate with whatever SAN (Subject Alternative Name) you specify. When you authenticate via PKINIT, the KDC reads the SAN, sees Administrator, and issues a TGT for Administrator — with no verification that you're actually Administrator. The CA's signature is all the proof the KDC needs.</p>
+
+    <h3>ESC8 — Why It Works</h3>
+    <p>The ADCS HTTP enrollment endpoint accepts NTLM authentication. Coerce a DC's machine account to authenticate to you (PetitPotam, PrintSpooler) → relay that auth to the enrollment endpoint → get a certificate for the DC machine account → PKINIT → TGT → DCSync. The relay succeeds because the endpoint doesn't validate whether the relayed authentication should be allowed to enroll. Same "authorization at the service" property from Module 1.</p>
+
+    <h3>Golden Certificate — The Ultimate Persistence</h3>
+    <p>The CA private key never rotates — ever — unless someone explicitly replaces the entire CA certificate, which is a massive PKI operation most orgs will never perform. A certificate forged with the CA private key will work indefinitely. Exfiltrating the CA private key is treated as a full domain compromise indicator because of this.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="mod7">Module 7 — Domain Persistence</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#dcsync">Domain Persistence → 05</a></div>
+    <div class="tags">
+      <span class="tag purple">DCSync</span><span class="tag purple">Golden Ticket</span>
+      <span class="tag purple">Silver Ticket</span><span class="tag purple">DSRM</span>
+    </div>
+
+    <h3>The Practical Reality</h3>
+    <table>
+      <thead><tr><th>Context</th><th>What You Actually Do</th></tr></thead>
+      <tbody>
+        <tr><td>Standard pentest</td><td>DCSync, save KRBTGT + Administrator hash, done</td></tr>
+        <tr><td>OSCP exam</td><td>DCSync, grab proof.txt, move to next machine</td></tr>
+        <tr><td>Red team</td><td>All persistence techniques matter</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Why KRBTGT Hash = Full Domain Compromise</h3>
+    <p>KRBTGT hash is the root of all Kerberos trust. Everything else flows from it. DA is a group membership — it can be removed. The KRBTGT hash lets you forge group memberships. Those are not equivalent. You haven't fully compromised a domain until you have the KRBTGT hash.</p>
+    <p>Most orgs have never rotated KRBTGT in the domain's entire lifetime. Even after a full domain password reset, forged tickets from the old hash work until KRBTGT is reset <em>twice</em> (DCs cache the previous hash for continuity).</p>
+
+    <h3>Silver Ticket Blind Spot</h3>
+    <p>Silver Tickets are forged AP-REQs — the service decrypts them locally, KDC is never contacted. Zero event logs on the DC. SIEM solutions watching 4768/4769 are completely blind to it. The tradeoff: works on one service only vs Golden Ticket which works everywhere but touches the KDC.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="mod8">Module 8 — Forest &amp; Trust Attacks</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#trusts">Forest & Trusts → 05</a></div>
+    <div class="tags">
+      <span class="tag blue">SID history</span><span class="tag blue">trusts</span>
+      <span class="tag blue">cross-forest</span><span class="tag blue">AES</span>
+    </div>
+
+    <h3>Trust Types and Exploitability</h3>
+    <table>
+      <thead><tr><th>Trust Type</th><th>SID Filtering</th><th>Exploitability</th></tr></thead>
+      <tbody>
+        <tr><td>Parent-Child (same forest)</td><td>Disabled by default</td><td class="tag green" style="display:inline-block">Always exploitable</td></tr>
+        <tr><td>Tree-Root (same forest)</td><td>Disabled by default</td><td class="tag green" style="display:inline-block">Always exploitable</td></tr>
+        <tr><td>External (different forest)</td><td>Enabled by default</td><td>SID history blocked; Kerberoasting still works</td></tr>
+        <tr><td>Forest trust</td><td>Depends on config</td><td>If SID filtering off → SID history works</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Why Parent-Child Is Always Exploitable</h3>
+    <p>SID filtering is never applied on trusts within the same forest. If you own a child domain, you forge an inter-realm TGT with the Enterprise Admins SID (<code>forest_root_SID-519</code>) in the extra-sids field. The forest root's KDC receives it, sees the EA SID in the PAC, and grants forest-wide admin. No way around this without restructuring the forest.</p>
+
+    <h3>AES vs RC4 on Trust Relationships</h3>
+    <p>If RC4 is allowed on a trust, the trust key is an RC4/NTLM hash — obtainable via DCSync (stored as the <code>[domain]$</code> account). With the RC4 trust key you can forge trust tickets offline without touching the KDC. AES enforcement raises the bar significantly — the trust key becomes a derived AES key. That's why "enforce AES on domain trusts" is the remediation for that finding.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="mod9">Module 9 — Defense Evasion &amp; OPSEC</h2>
+    <div style="margin: -8px 0 16px; padding: 6px 12px; background: #1f6feb14; border-left: 2px solid #58a6ff; border-radius: 0 4px 4px 0; font-size: 12px; color: #8b949e;">⚡ <strong style="color:#58a6ff;">Commands:</strong> <a href="05-active-directory.html#stuck">Defense Evasion → 05</a></div>
+    <div class="tags">
+      <span class="tag purple">AMSI</span><span class="tag purple">ETW</span>
+      <span class="tag purple">LOLBins</span><span class="tag purple">event IDs</span>
+    </div>
+
+    <h3>The Noise Spectrum</h3>
+    <div class="flow"><span class="warn">Loudest ↑</span>
+  Mimikatz on disk + executed directly
+  PSExec lateral movement
+  SharpHound default (10k LDAP queries in 30sec)
+  Password spray too fast → lockout
+
+  WMI/WinRM execution
+  Targeted LDAP queries
+  Kerberoasting (single request)
+
+<span class="hl">Quietest ↓</span>
+  Silver Ticket (never touches DC, zero event logs)
+  LDAP reads (looks like normal admin traffic)
+  LOLBins (trusted, signed, expected behavior)</div>
+
+    <h3>Why AMSI Bypasses Work</h3>
+    <p>AMSI is implemented as <code>amsi.dll</code> loaded into the PowerShell process. Bypasses patch the scanning function in memory to always return "clean." You're not evading the AV engine — you're disabling the pipe that feeds content to it. Specific bypass strings are signatures themselves now; implementations rotate constantly.</p>
+
+    <h3>ETW — The Deeper Layer</h3>
+    <p>ETW is the real-time telemetry stream feeding most EDR products. It sees Kerberos requests, process creation, network connections, and memory allocations — even if you bypassed AMSI. Modern EDRs that monitor for self-patching behavior will catch ETW patching itself.</p>
+
+    <h3>Event IDs Defenders Watch</h3>
+    <table>
+      <thead><tr><th>Event ID</th><th>What It Is</th><th>Attack Signal</th></tr></thead>
+      <tbody>
+        <tr><td>4768</td><td>TGT requested (AS-REQ)</td><td>Unusual source IPs; AS-REP roasting generates these without pre-auth</td></tr>
+        <tr><td>4769</td><td>TGS requested</td><td>RC4 encryption type (0x17) = Kerberoasting. Request AES to evade.</td></tr>
+        <tr><td>4771</td><td>Kerberos pre-auth failed</td><td>Pattern of failures = password spray or brute force</td></tr>
+        <tr><td>4624</td><td>Successful logon</td><td>Unusual logon types, times, source IPs</td></tr>
+        <tr><td>4625</td><td>Failed logon</td><td>Pattern indicates spray</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <strong>Silver Ticket blind spot:</strong> 4769 is only logged on the DC. Silver Tickets never touch the DC — the service decrypts them locally. Zero DC event logs. SIEM watching Kerberos event IDs is completely blind to Silver Ticket auth.
+    </div>
+
+    <h3>The Assumed Breach Mindset</h3>
+    <p>Assume you're being watched from the moment you get a foothold. Clear PowerShell history after sensitive commands. Remove tools from disk after use. Never reuse the same technique repeatedly — pattern recognition is how SIEMs catch you.</p>
+
+    <!-- ============================================================ -->
+    <h2 id="mod10">Module 10 — Capstone: Full Engagement Flow</h2>
+
+    <h3>The Six Phases</h3>
+    <div class="flow"><span class="acc">Phase 1 — Initial Foothold</span>
+  DNS recon → DC hostnames, domain name, subnets
+  OSINT → email format, employee names for spray list
+  Password spray → Season+Year, Company+Year, Welcome1!
+  One valid credential → you're in
+
+<span class="acc">Phase 2 — Enumerate Everything First</span>
+  SharpHound immediately (DCOnly if monitored)
+  Parallel: SYSVOL, open shares, GetUserSPNs, GetNPUsers,
+            findDelegation, certipy find, nltest /domain_trusts
+  BloodHound: shortest path, Kerberoastable, AS-REP, GPO write,
+              DCSync rights, foreign memberships
+  <span class="warn">Never exploit before enumeration is complete</span>
+
+<span class="acc">Phase 3 — Identify the Path</span>
+  BloodHound path exists? → follow it
+  ADCS vulnerable?        → ESC8/ESC1 first (fastest DC hash path)
+  Kerberoastable DA?      → crack it
+  Unconstrained deleg?    → coerce + capture
+  Local admin anywhere?   → sweep + check sessions
+
+<span class="acc">Phase 4 — Execute</span>
+  ACL abuse → shadow creds over password reset
+  Kerberoast → RC4 unless monitored, crack offline
+  ADCS → ESC8: relay→cert→DCSync | ESC1: two certipy commands
+  Lateral → WMI/WinRM, mark owned, requery BloodHound every hop
+
+<span class="acc">Phase 5 — DA and Beyond</span>
+  DCSync immediately → save KRBTGT + Administrator hash
+  Check trusts → SID history toward forest root
+  ADCS present → extract CA private key → golden certificate
+
+<span class="acc">Phase 6 — Document</span>
+  Chain the findings. One chain > five standalone findings.
+  Every finding: title, severity, evidence, attack narrative,
+  business impact, remediation.</div>
+
+    <h3>The Mental Model</h3>
+    <div class="flow">AD is a database (LDAP)
+         ↓
+Authentication is Kerberos tickets and NTLM hashes
+         ↓
+Tickets and hashes are fungible credential material
+         ↓
+Misconfigured permissions on database objects = attack paths
+         ↓
+BloodHound maps those paths as a graph
+         ↓
+Your job is to walk the graph from foothold to KRBTGT
+         ↓
+<span class="hl">KRBTGT = full domain trust anchor = domain owned</span></div>
+
+    <!-- ============================================================ -->
+    <h2 id="heuristics">Core Heuristics</h2>
+
+    <div class="heuristic-grid">
+
+      <div class="heuristic-card">
+        <div class="num">01</div>
+        <div class="title">Protocol Feature vs Vulnerability</div>
+        <div class="body">Most AD attacks are protocol features being abused, not CVEs. Patches rarely fix them. Shift from "what's vulnerable" to "what's misconfigured or default."</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">02</div>
+        <div class="title">Who Encrypts What, With Whose Key?</div>
+        <div class="body">TGT encrypted with KRBTGT → Golden Ticket. TGS encrypted with SVC hash → Kerberoasting / Silver Ticket. AS-REP encrypted with user hash → AS-REP Roasting. Answer this for any blob and you know the attack.</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">03</div>
+        <div class="title">Where Does Authorization Actually Happen?</div>
+        <div class="body">The gap between where defenders think enforcement is and where it actually is = attack surface. KDC doesn't check → Kerberoast. ADCS doesn't check enrollment rights → ESC8. LDAP allows all users to read → enumeration is free.</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">04</div>
+        <div class="title">Enumeration Is Free</div>
+        <div class="body">Any authenticated domain user can read almost all of AD by default. Exhaust enumeration fully before making noise. The information asymmetry between what a low-priv user can read and what defenders assume they can read is a fundamental AD design problem.</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">05</div>
+        <div class="title">Default Until Proven Otherwise</div>
+        <div class="body">SMB signing off on workstations. LDAP signing not enforced. ADCS HTTP with NTLM. RC4 supported. Pre-auth disabled on legacy accounts. Assume the default is in place unless you have evidence it was hardened.</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">06</div>
+        <div class="title">Credentials Are Fungible</div>
+        <div class="body">Hash → PtH. Hash → Overpass-the-Hash → TGT. TGT → any TGS. Certificate → PKINIT → TGT. TGT → DCSync → all hashes. When you get any credential material, ask what other forms you can convert it to.</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">07</div>
+        <div class="title">Domain Compromise = KRBTGT Hash</div>
+        <div class="body">DA is a group membership. It can be removed. The KRBTGT hash lets you forge group memberships. You haven't fully compromised a domain until you have the KRBTGT hash.</div>
+      </div>
+
+      <div class="heuristic-card">
+        <div class="num">08</div>
+        <div class="title">If DC Isn't Involved, It Might Not Be Logged</div>
+        <div class="body">Silver Tickets never touch the DC = zero DC event logs = SIEM blind. The stealthier the attack, the more it bypasses the DC. Route around the DC when stealth matters.</div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <h2 id="decision-tree">No Path to DA — Decision Tree</h2>
+
+    <div class="flow"><span class="warn">No shortest path to DA</span>
+│
+├── <span class="acc">1. Check owned nodes</span>
+│        Foothold marked as owned in BloodHound?
+│        If no → mark it, requery
+│
+├── <span class="acc">2. Widen BloodHound queries</span>
+│        Shortest path to ANY high value target
+│        Who has DCSync rights?
+│        Unconstrained delegation computers?
+│        GPO write access?
+│        If hit → follow that path
+│
+├── <span class="acc">3. Credential attack surface</span>
+│        Kerberoastable?   → request TGS, crack offline
+│        AS-REP roastable? → request blob, crack offline
+│        If cracked → mark owned, back to step 1
+│
+├── <span class="acc">4. Local admin sweep + sessions</span>
+│        nxc smb sweep for local admin
+│        Check --loggedon-users on every accessible machine
+│        DA in memory? → dump LSASS → PtT to DA
+│
+├── <span class="acc">5. SYSVOL + share enumeration</span>
+│        GPP XML, scripts, config files
+│        If creds found → mark owned, back to step 1
+│
+├── <span class="acc">6. ACL deep dive</span>
+│        Rerun SharpHound --collectall if not done
+│        Any GenericAll / WriteDACL / GenericWrite?
+│        If found → abuse ACL, back to step 1
+│
+└── <span class="acc">7. Missing context</span>
+         Other domains / trusts?  → rerun SharpHound in new context
+         ADCS installed?          → certipy find -vulnerable
+         Services running?        → MSSQL, Exchange, web apps
+         Incomplete collection?   → rerun with --collectall</div>
+
+    <h3>Rabbit Hole Detection</h3>
+    <div class="callout warning">
+      You're in a rabbit hole if: 30+ min on the same path with no new owned nodes,
+      next step requires waiting for an external event, hashes won't crack despite good wordlists,
+      or you're 4+ ACL hops deep with no guarantee the chain is valid.
+      <br><br>
+      <strong>When this hits: stop, go back to step 1, try a completely different branch.</strong>
+    </div>
+
+    <h3>The Six Branches — Switch When Stuck</h3>
+    <table>
+      <thead><tr><th>#</th><th>Branch</th><th>Rabbit Hole Signal</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Credential Attacks (Kerberoast, AS-REP, spray)</td><td>Hashes won't crack; no SPNs; lockout risk</td></tr>
+        <tr><td>2</td><td>ACL Abuse (BloodHound edges, GenericAll chains)</td><td>Chain is 5+ hops with no guarantee</td></tr>
+        <tr><td>3</td><td>Local Admin + Sessions (nxc sweep, LSASS, PtT)</td><td>No local admin anywhere; no active sessions</td></tr>
+        <tr><td>4</td><td>Share + File Hunting (SYSVOL, open shares, configs)</td><td>Shares empty or access denied everywhere</td></tr>
+        <tr><td>5</td><td>Delegation Abuse (unconstrained, constrained, RBCD)</td><td>No delegation configured anywhere</td></tr>
+        <tr><td>6</td><td>ADCS (certipy find, ESC1–8)</td><td>ADCS not installed; templates locked down</td></tr>
+        <tr><td>7</td><td>App/Service Layer (MSSQL, Exchange, web apps)</td><td>No interesting services exposed</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <strong>Branch prioritization:</strong>
+      High user count + old passwords + no signing → Branch 1 first.
+      Lots of machines + no password policy → Branch 3 first.
+      ADCS installed → Branch 6 <em>immediately</em> before anything else.
+      BloodHound shows ACL edges → Branch 2 first.
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <a href="https://difficultsnow.github.io/PT-toolkit-main/index.html">&lt;DifficultSnow/&gt;</a> | Psalm OSCP Methodology — AD Theory Review
+</footer>
+
+<script>
+  document.querySelectorAll('.code-block').forEach(block => {
+    const btn = block.querySelector('.copy-btn');
+    const pre = block.querySelector('pre');
+    if (!btn || !pre) return;
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        btn.textContent = 'copied';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'copy';
+          btn.classList.remove('copied');
+        }, 1500);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
