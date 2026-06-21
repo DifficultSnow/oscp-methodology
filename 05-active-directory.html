@@ -264,6 +264,117 @@
     .dp-post   { background: #58a6ff12; border: 1px solid #58a6ff44; color: var(--accent); }
     .dp-auth   { background: #3fb95012; border: 1px solid #3fb95044; color: var(--green); }
     .dp-infra  { background: #d2992212; border: 1px solid #d2992244; color: var(--yellow); }
+    /* STAGE BANNERS — replace simple divider pills */
+    .stage {
+      margin: 2.5rem 0 1.5rem;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border2);
+      background: var(--bg2);
+      scroll-margin-top: 70px;
+    }
+    .stage-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--mono);
+    }
+    .stage-icon { font-size: 1.4rem; }
+    .stage-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      flex: 1;
+    }
+    .stage-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .stage-unauth { border-left: 4px solid var(--purple); }
+    .stage-unauth .stage-title { color: var(--purple); }
+    .stage-post   { border-left: 4px solid var(--accent); }
+    .stage-post   .stage-title { color: var(--accent); }
+    .stage-auth   { border-left: 4px solid var(--green); }
+    .stage-auth   .stage-title { color: var(--green); }
+    .stage-infra  { border-left: 4px solid var(--yellow); }
+    .stage-infra  .stage-title { color: var(--yellow); }
+
+    .stage-body {
+      padding: 14px 20px 16px;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+    .stage-do-order {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+      display: block;
+    }
+    .stage-order {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      counter-reset: stage-counter;
+    }
+    .stage-order li {
+      counter-increment: stage-counter;
+      padding: 4px 0 4px 36px;
+      position: relative;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    .stage-order li::before {
+      content: counter(stage-counter);
+      position: absolute;
+      left: 0;
+      top: 4px;
+      width: 24px;
+      height: 24px;
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stage-order li a { color: var(--text); text-decoration: none; font-weight: 500; }
+    .stage-order li a:hover { color: var(--accent); text-decoration: underline; }
+    .stage-order li span { color: var(--dim); margin-left: 6px; font-size: 0.78rem; }
+
+    /* ORDER TAG on section titles */
+    .order-tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #1f6feb22;
+      border: 1px solid #1f6feb55;
+      color: #58a6ff;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+    .order-tag.tag-1st { background: #3fb95025; border-color: #3fb950aa; color: #3fb950; }
+    .order-tag.tag-2nd { background: #d2992225; border-color: #d29922aa; color: #d29922; }
+    .order-tag.tag-3rd { background: #bc8cff25; border-color: #bc8cffaa; color: #bc8cff; }
+    .order-tag.tag-ref { background: #58a6ff15; border-color: #58a6ff55; color: #58a6ff; text-transform: uppercase; }
+    .order-tag.tag-help { background: #f8514915; border-color: #f8514955; color: #f85149; text-transform: uppercase; }
+    .order-tag.tag-goal { background: #3fb95015; border-color: #3fb95055; color: #3fb950; text-transform: uppercase; }
+
 
     @media(max-width:880px) {
       .sidebar{display:none;}
@@ -372,7 +483,7 @@
                        │
         ┌──────────────┼──────────────┐
         ▼              ▼              ▼
-  <a href="#unauth-smb">No creds</a>      <a href="#local-enum">Shell on box</a>     <a href="#bloodhound">Valid creds</a>
+  <a href="#stage-unauth">No creds</a>      <a href="#stage-post">Shell on box</a>     <a href="#stage-auth">Valid creds</a>
         │              │              │
         │         ┌────┴────┐         │
         │      <a href="#local-enum">SYSTEM?</a>  <a href="#domain-enum">User?</a>      │
@@ -455,7 +566,7 @@
           <text x="535" y="172" fill="#6e7681" font-family="'Courier New',monospace" font-size="11">have creds</text>
 
           <!-- LEFT BRANCH: UNAUTH -->
-          <a href="#unauth-smb"><rect x="20" y="200" width="200" height="60" rx="8" fill="#2d2a3e" stroke="#6e5a9e" stroke-width="1"/>
+          <a href="#stage-unauth"><rect x="20" y="200" width="200" height="60" rx="8" fill="#2d2a3e" stroke="#6e5a9e" stroke-width="1"/>
           <text x="120" y="222" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="13" font-weight="500">Unauthenticated</text>
           <text x="120" y="241" text-anchor="middle" dominant-baseline="central" fill="#bc8cff" font-family="'Courier New',monospace" font-size="11">SMB/LDAP/Kerbrute</text></a>
 
@@ -469,7 +580,7 @@
           <line x1="120" y1="360" x2="280" y2="420" stroke="#8b949e" stroke-width="1" marker-end="url(#arrow)"/>
 
           <!-- MIDDLE BRANCH: LOCAL ENUM -->
-          <a href="#local-enum"><rect x="260" y="200" width="200" height="60" rx="8" fill="#0d1f36" stroke="#1f4a7a" stroke-width="1"/>
+          <a href="#stage-post"><rect x="260" y="200" width="200" height="60" rx="8" fill="#0d1f36" stroke="#1f4a7a" stroke-width="1"/>
           <text x="360" y="222" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="13" font-weight="500">Local Enum</text>
           <text x="360" y="241" text-anchor="middle" dominant-baseline="central" fill="#58a6ff" font-family="'Courier New',monospace" font-size="11">SAM + LSASS + DPAPI</text></a>
 
@@ -483,7 +594,7 @@
           <line x1="360" y1="360" x2="360" y2="420" stroke="#8b949e" stroke-width="1" marker-end="url(#arrow)"/>
 
           <!-- RIGHT BRANCH: HAVE CREDS -->
-          <a href="#bloodhound"><rect x="500" y="200" width="200" height="60" rx="8" fill="#1a2e2a" stroke="#2a6b5e" stroke-width="1"/>
+          <a href="#stage-auth"><rect x="500" y="200" width="200" height="60" rx="8" fill="#1a2e2a" stroke="#2a6b5e" stroke-width="1"/>
           <text x="600" y="222" text-anchor="middle" dominant-baseline="central" fill="#e6edf3" font-family="'Courier New',monospace" font-size="13" font-weight="500">BloodHound</text>
           <text x="600" y="241" text-anchor="middle" dominant-baseline="central" fill="#3fb950" font-family="'Courier New',monospace" font-size="11">ingest immediately</text></a>
 
@@ -550,7 +661,22 @@
     </div>
 
 
-    <div class="divider-pill dp-unauth">⬇ Unauthenticated — No creds yet</div>
+    <div class="stage stage-unauth" id="stage-unauth">
+      <div class="stage-header">
+        <span class="stage-icon">🟣</span>
+        <span class="stage-title">STAGE: UNAUTHENTICATED</span>
+        <span class="stage-subtitle">no creds yet</span>
+      </div>
+      <div class="stage-body">
+        <span class="stage-do-order">Do in this order:</span>
+        <ol class="stage-order">
+          <li><a href="#unauth-smb">SMB Null Session</a> <span>— shares, users via guest/null</span></li>
+          <li><a href="#unauth-ldap">LDAP Anonymous Bind</a> <span>— users + descriptions if allowed</span></li>
+          <li><a href="#unauth-kerb">Kerbrute User Enum</a> <span>— safe, no lockout events</span></li>
+          <li><a href="#unauth-asrep">AS-REP Roasting (no creds)</a> <span>— free hashes if pre-auth disabled</span></li>
+        </ol>
+      </div>
+    </div>
 <details class="sec-detail" id="unauth-smb">
 <summary>🔓 SMB — Null Session Enum<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">try first</span></summary>
 <div class="sec-body">
@@ -677,7 +803,20 @@ hashcat -m 18200 ~/exam/loot/asrep_noauth.hashes /usr/share/wordlists/rockyou.tx
 </div>
 </details>
 
-    <div class="divider-pill dp-post">⬇ Post-Compromise — You have a shell on a domain-joined machine</div>
+    <div class="stage stage-post" id="stage-post">
+      <div class="stage-header">
+        <span class="stage-icon">🔵</span>
+        <span class="stage-title">STAGE: POST-COMPROMISE</span>
+        <span class="stage-subtitle">shell on a domain-joined machine</span>
+      </div>
+      <div class="stage-body">
+        <span class="stage-do-order">Do in this order:</span>
+        <ol class="stage-order">
+          <li><a href="#local-enum">Local Enumeration</a> <span>— privesc, SAM/LSASS, hash spray (often faster path to DA)</span></li>
+          <li><a href="#domain-enum">Domain Enumeration</a> <span>— query DC from this box's user context</span></li>
+        </ol>
+      </div>
+    </div>
 <details class="sec-detail" id="local-enum">
 <summary>💻 Local Enumeration — This Machine<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">critical</span></summary>
 <div class="sec-body">
@@ -1113,9 +1252,31 @@ Get-ObjectAcl -SamAccountName &lt;user&gt; -ResolveGUIDs  <span class="c"># ACLs
 </div>
 </details>
 
-    <div class="divider-pill dp-auth">⬇ Authenticated — You have valid credentials</div>
+    <div class="stage stage-auth" id="stage-auth">
+      <div class="stage-header">
+        <span class="stage-icon">🟢</span>
+        <span class="stage-title">STAGE: AUTHENTICATED</span>
+        <span class="stage-subtitle">you have valid credentials</span>
+      </div>
+      <div class="stage-body">
+        <span class="stage-do-order">Do in this order — everything else is on-demand:</span>
+        <ol class="stage-order">
+          <li><a href="#bloodhound">BloodHound</a> <span>— ingest immediately, runs in background while you do the rest</span></li>
+          <li><a href="#sysvol">SYSVOL / GPP</a> <span>— 30 seconds, free creds in scripts &amp; cpassword XMLs</span></li>
+          <li><a href="#auth-enum">Authenticated Enumeration</a> <span>— users, groups, shares, password policy</span></li>
+          <li><a href="#kerberoast">Kerberoast</a> + <a href="#asrep">AS-REP roast</a> <span>— request hashes, crack in parallel</span></li>
+          <li><a href="#spray">Password Spray</a> <span>— check lockout policy first, then try common passwords</span></li>
+          <li>Then attack — <a href="#acl">ACL paths</a>, <a href="#adcs">ADCS</a>, <a href="#delegation">delegation</a>, <a href="#laps">LAPS</a>, <a href="#mssql">MSSQL</a> as BloodHound reveals them</li>
+          <li><a href="#lateral">Lateral movement</a> <span>— sweep hashes, check sessions on every owned machine</span></li>
+          <li><a href="#dcsync">DCSync + Proof</a> <span>— grab KRBTGT + Administrator hash + proof.txt</span></li>
+        </ol>
+        <div style="margin-top:0.8rem;padding:8px 12px;background:#f8514912;border-left:2px solid var(--red);border-radius:0 4px 4px 0;font-size:0.78rem;color:var(--muted);">
+          🚨 <strong style="color:var(--red);">Stuck?</strong> <a href="#stuck" style="color:var(--red);">Stuck Checklist</a> → <a href="#tool-errors" style="color:var(--red);">Tool Errors</a> → <a href="#kerb-errors" style="color:var(--red);">Kerberos Errors</a>
+        </div>
+      </div>
+    </div>
 <details class="sec-detail" id="bloodhound">
-<summary>🩸 BloodHound — Run Immediately on First Creds<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">first action</span></summary>
+<summary><span class="order-tag tag-1st">1st</span>🩸 BloodHound — Run Immediately on First Creds<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">first action</span></summary>
 <div class="sec-body">
 <div class="note n-good">BloodHound is your kill chain map. Run it the moment you have any valid creds. Everything else runs in parallel while it ingests.</div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">ingest with creds</span><div class="cb-tags"><span class="tag t-ad">first action</span></div><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -1201,7 +1362,7 @@ MATCH p=shortestPath((o {owned:true})-[*1..]-&gt;(g:Group {name:"DOMAIN ADMINS@C
 </div>
 </details>
 <details class="sec-detail" id="auth-enum">
-<summary>🔍 Authenticated Enumeration<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">parallel</span></summary>
+<summary><span class="order-tag tag-3rd">3rd</span>🔍 Authenticated Enumeration<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">parallel</span></summary>
 <div class="sec-body">
 <div class="cb"><div class="cb-head"><span class="cb-lbl">users, groups, shares, policy</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>crackmapexec smb &lt;DC_IP&gt; -u &lt;user&gt; -p '&lt;pass&gt;' --users
@@ -1239,7 +1400,7 @@ ldapsearch -x -H ldap://&lt;DC_IP&gt; -D "&lt;user&gt;@&lt;domain&gt;" -w '&lt;p
 </div>
 </details>
 <details class="sec-detail" id="sysvol">
-<summary>📁 SYSVOL / Group Policy Preferences (GPP)<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">free win</span></summary>
+<summary><span class="order-tag tag-2nd">2nd</span>📁 SYSVOL / Group Policy Preferences (GPP)<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">free win</span></summary>
 <div class="sec-body">
 <div class="note n-warn">SYSVOL is readable by every domain user by default. Admins treat it like a private admin folder — it isn't. Check it the moment you have any domain credential. Takes 30 seconds.</div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">what is SYSVOL</span><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -1334,7 +1495,7 @@ crackmapexec smb &lt;DC_IP&gt; -u Administrator -p 'Password123!'</pre></div>
 </div>
 </details>
 <details class="sec-detail" id="kerberoast">
-<summary>🎫 Kerberoasting<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">high value</span></summary>
+<summary><span class="order-tag tag-3rd">4th</span>🎫 Kerberoasting<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">high value</span></summary>
 <div class="sec-body">
 <div class="cb"><div class="cb-head"><span class="cb-lbl">request TGS hashes + crack</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>impacket-GetUserSPNs &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -outputfile ~/exam/loot/kerberoast.hashes
@@ -1368,7 +1529,7 @@ hashcat -m 13100 ~/exam/loot/kerberoast.hashes /usr/share/wordlists/rockyou.txt 
 </div>
 </details>
 <details class="sec-detail" id="asrep">
-<summary>🎫 AS-REP Roasting — With Creds<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">free hashes</span></summary>
+<summary><span class="order-tag tag-3rd">4th</span>🎫 AS-REP Roasting — With Creds<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">free hashes</span></summary>
 <div class="sec-body">
 <div class="cb"><div class="cb-head"><span class="cb-lbl">find no-preauth accounts + crack</span><button class="cpb" onclick="cp(this)">copy</button></div>
         <pre>impacket-GetNPUsers &lt;domain&gt;/&lt;user&gt;:'&lt;pass&gt;' -dc-ip &lt;DC_IP&gt; -request -format hashcat -outputfile ~/exam/loot/asrep.hashes
@@ -1391,7 +1552,7 @@ hashcat -m 18200 ~/exam/loot/asrep.hashes /usr/share/wordlists/rockyou.txt -r /u
 </div>
 </details>
 <details class="sec-detail" id="spray">
-<summary>💨 Password Spray<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">careful</span></summary>
+<summary><span class="order-tag tag-3rd">5th</span>💨 Password Spray<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">careful</span></summary>
 <div class="sec-body">
 <div class="note n-bad">Check lockout threshold FIRST. Spray max threshold-2 passwords per round. Wait 30min between rounds.</div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">spray safely</span><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -2266,7 +2427,7 @@ curl -s -o /dev/null -w "%{http_code}" http://&lt;ADCS_IP&gt;/certsrv/
 </div>
 </details>
 <details class="sec-detail" id="kerb-errors">
-<summary>⚠️ Kerberos Errors — Common Failures &amp; Fixes<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">reference</span></summary>
+<summary><span class="order-tag tag-ref">REFERENCE</span>⚠️ Kerberos Errors — Common Failures &amp; Fixes<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">reference</span></summary>
 <div class="sec-body">
 <div class="note n-warn">Kerberos errors are confusing because the codes don't always mean what they sound like. Reference table below maps every common error to its actual cause and fix.</div>
 
@@ -2337,7 +2498,7 @@ EOF</pre></div>
 </details>
 
 <details class="sec-detail" id="tool-errors">
-<summary>🛠️ Tool Errors — Common Failures &amp; Fixes<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">reference</span></summary>
+<summary><span class="order-tag tag-ref">REFERENCE</span>🛠️ Tool Errors — Common Failures &amp; Fixes<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">reference</span></summary>
 <div class="sec-body">
 <div class="note n-warn">Catch-all reference for tool-level errors that aren't Kerberos protocol errors. Organized by tool — Ctrl+F your error message.</div>
 
@@ -2497,7 +2658,7 @@ sudo tcpdump -i tun0 host &lt;TARGET_IP&gt; -w /tmp/debug.pcap
 </details>
 
 <details class="sec-detail" id="lockout">
-<summary>🔒 Lockout Math — Spray Without Locking Anyone<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">required</span></summary>
+<summary><span class="order-tag tag-ref">REFERENCE</span>🔒 Lockout Math — Spray Without Locking Anyone<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">required</span></summary>
 <div class="sec-body">
 <div class="note n-bad">Locking out accounts during exam = DQ-level mistake. Always check policy first. Math below shows safe spray rates for common policies.</div>
 
@@ -2576,7 +2737,7 @@ P@ssw0rd1!</pre></div>
 </div>
 </details>
 <details class="sec-detail" id="stuck">
-<summary>🤔 Stuck Checklist — No Path in BloodHound<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">recovery</span></summary>
+<summary><span class="order-tag tag-help">HELP</span>🤔 Stuck Checklist — No Path in BloodHound<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">recovery</span></summary>
 <div class="sec-body">
 <div class="note n-bad">If BloodHound shows no path and you've been stuck for 20+ minutes, go through this list top to bottom before moving to another target.</div>
 
@@ -2633,7 +2794,7 @@ route print
 </div>
 </details>
 <details class="sec-detail" id="dcsync">
-<summary>💀 DCSync + Proof<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">finish</span></summary>
+<summary><span class="order-tag tag-goal">GOAL</span>💀 DCSync + Proof<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">finish</span></summary>
 <div class="sec-body">
 <div class="note n-good">You need DA, local admin on DC, or DCSync rights. All three lead here. Proof.txt + whoami + hostname in ONE screenshot is what scores.</div>
       <div class="cb"><div class="cb-head"><span class="cb-lbl">get shell on DC</span><button class="cpb" onclick="cp(this)">copy</button></div>
@@ -2691,7 +2852,20 @@ crackmapexec smb &lt;subnet&gt;/24 -u Administrator -H &lt;NThash&gt; --continue
 </div>
 </details>
 
-    <div class="divider-pill dp-infra">⬇ Infrastructure &amp; Cross-Domain</div>
+    <div class="stage stage-infra" id="stage-infra">
+      <div class="stage-header">
+        <span class="stage-icon">🟡</span>
+        <span class="stage-title">STAGE: INFRASTRUCTURE &amp; CROSS-DOMAIN</span>
+        <span class="stage-subtitle">multi-host / multi-domain situations</span>
+      </div>
+      <div class="stage-body">
+        <span class="stage-do-order">When needed:</span>
+        <ol class="stage-order">
+          <li><a href="#pivot">Pivoting (Ligolo-ng)</a> <span>— when a target is on a subnet you can't reach directly</span></li>
+          <li><a href="#trusts">Trust Attacks</a> <span>— after DA in one domain, pivot to forest root or trusted domain</span></li>
+        </ol>
+      </div>
+    </div>
 <details class="sec-detail" id="pivot">
 <summary>🔌 Pivoting — Ligolo-ng<span class="tag t-crit" style="margin-left:auto;margin-right:1rem;">subnet</span></summary>
 <div class="sec-body">
